@@ -75,15 +75,6 @@ clean:
 	rm -rf dist/
 
 #
-## Documentation
-.PHONY: doc/openapi.json
-doc/openapi.json:
-	dotenv -- python generate-openapi.py
-
-.PHONY: doc
-doc: doc/openapi.json
-
-#
 ## Packaging
 build/context:
 	docker buildx create --name $(APP_NAME) --bootstrap
@@ -136,8 +127,8 @@ watch-image-test:
 testserver: image-test
 	docker run -it --rm -v /tmp/data:/data -p 1111:1111 -e ROOT_PATH=/publisher -e WORKER=1 demsking/oremi-forecast
 
-publish: image-test doc
-	git commit pyproject.toml doc/ -m "Release $(APP_VERSION)"
+publish: image-test
+	git commit pyproject.toml -m "Release $(APP_VERSION)"
 	$(MAKE) image
 	git tag v$(APP_VERSION)
 	git push --tags origin main
