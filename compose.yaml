@@ -1,0 +1,38 @@
+---
+services:
+  server:
+    build:
+      context: .
+    restart: no
+    env_file:
+      - .env
+      - .env.local
+    environment:
+      ROOT_PATH: /
+      LOG_LEVEL: debug
+    ports:
+      - 1111:1111
+    develop:
+      watch:
+        - action: rebuild
+          path: Dockerfile
+        - action: rebuild
+          path: poetry.lock
+        - action: sync+restart
+          path: pyproject.toml
+          target: /opt/oremi-forecast/pyproject.toml
+        - action: sync+restart
+          path: DOCUMENTATION.md
+          target: /opt/oremi-forecast/DOCUMENTATION.md
+        - action: sync+restart
+          path: server
+          target: /opt/oremi-forecast/server
+        - action: rebuild
+          path: bin/
+          target: /opt/oremi-forecast/bin
+    # command: --reload --reload-dir /opt/oremi-forecast/server --workers 1
+    entrypoint: python /opt/oremi-forecast/server
+
+  shadow:
+    image: traefik/whoami
+...

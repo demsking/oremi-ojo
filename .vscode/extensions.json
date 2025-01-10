@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "Vue.volar",
+    "Vue.vscode-typescript-vue-plugin",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-python.python",
+    "ms-python.pylint",
+    "bradlc.vscode-tailwindcss",
+    "ms-python.autopep8",
+    "ms-python.debugpy"
+  ]
+}

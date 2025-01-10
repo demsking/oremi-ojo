@@ -1,0 +1,168 @@
+locale: en
+dictionary:
+  N: North
+  NNE: North-Northeast
+  NE: Northeast
+  ENE: East-Northeast
+  E: East
+  ESE: East-Southeast
+  SE: Southeast
+  SSE: South-Southeast
+  S: South
+  SSW: South-Southwest
+  SW: Southwest
+  WSW: West-Southwest
+  W: West
+  WNW: West-Northwest
+  NW: Northwest
+  NNW: North-Northwest
+  POLLEN_LEVEL_0: 'null'
+  POLLEN_LEVEL_1: low
+  POLLEN_LEVEL_2: medium
+  POLLEN_LEVEL_3: high
+features:
+  - name: air-quality
+    exec: exec_air_quality
+    utterance:
+      - What is the air quality today?
+      - Give me the current air quality index.
+      - How is the air pollution level?
+      - What is the air quality rating?
+      - How is the air quality in my area?
+      - Is the air polluted today?
+      - What is the air pollution index?
+      - Can you tell me if the air is good to breathe?
+      - Are there any pollution issues in my city?
+  - name: pollen
+    exec: exec_pollen
+    utterance:
+      - What is the pollen level today?
+      - Give me information about allergens in the air.
+      - Are pollen levels high at the moment?
+      - Are there risks of pollen allergies?
+      - Can you tell me which types of pollen are currently present?
+      - Do you know if the pollen level is high?
+      - What is the pollen forecast for today?
+      - Inform me about pollen allergies.
+      - What are the most common allergens at the moment?
+      - Give me the pollen information.
+  - name: humidity-level
+    exec: exec_humidity_level
+    utterance:
+      - What is the humidity level?
+      - What is the ambient humidity?
+      - Can you tell me the current humidity level?
+      - Is there humidity in the air?
+      - Do you know if the humidity is high?
+      - Is it humid?
+      - What is the humidity level right now?
+      - Is the air dry or humid?
+      - Is the humidity comfortable?
+      - Can you give me the humidity percentage?
+  - name: is-day
+    exec: exec_is_day
+    utterance:
+      - Is it daytime?
+      - Has the sun risen?
+      - Is it bright outside?
+      - Can you tell me if it's daytime?
+      - Is there daylight present?
+      - Is there natural light right now?
+      - Do you know if it's daytime?
+      - Has the day started?
+      - Is the sky illuminated?
+      - Is it still daytime?
+  - name: is-night
+    exec: exec_is_night
+    utterance:
+      - Is it nighttime?
+      - Has the sun set?
+      - Is it dark outside?
+      - Can you tell me if it's nighttime?
+      - Is darkness present?
+      - Is there darkness right now?
+      - Do you know if it's nighttime?
+      - Has the night fallen?
+      - Is the sky dark?
+      - Is it still nighttime?
+  - name: forecast
+    exec: exec_forecast
+    utterance:
+      - Weather
+      - Go rain today?
+      - What's the weather like today?
+      - What's the current weather?
+      - Give me the weather for today
+      - What's the weather forecast for today?
+      - Weather information for today
+      - Local real-time weather
+      - Weather forecast for the day
+      - Give me the current weather
+      - What's the weather like in my area?
+      - Current local weather
+      - Weather forecast for today
+      - What's the weather like in my location?
+      - Real-time weather in my area
+      - What's the current weather situation?
+      - What's the weather like at my place?
+      - Give me the weather in my city
+      - What's the weather like today in my region?
+      - Weather forecast for my location
+      - What's the weather like in my city?
+      - Current weather in my area
+      - What's the weather like in Paris?
+      - Give me the weather for Marseille
+      - What's the weather in Lyon?
+      - What's the weather like in Bordeaux today?
+      - Weather information for Nice
+      - What's the current weather in Toulouse?
+      - Weather forecast for Lille
+      - Give me the weather in Strasbourg
+      - What's the weather like in Nantes right now?
+      - Local weather for Rennes
+      - Weather forecast for Cannes
+      - What's the weather forecast for Montpellier?
+      - Real-time weather in Grenoble
+      - What's the current weather situation in Clermont-Ferrand?
+      - What's the weather like at my place in Reims?
+      - Give me the weather in Dijon
+      - What's the weather for today in Tours?
+      - Weather forecast for Annecy
+      - What's the weather forecast for Perpignan?
+      - Current weather in Saint-Étienne
+  - name: sunrise
+    exec: exec_sunrise
+    utterance:
+      - What time does the sun rise today?
+      - When is the sunrise?
+      - Can you tell me the exact time of sunrise?
+      - Give me the precise time of sunrise.
+      - What is the sunrise horizon for today?
+      - At what time does the sun rise tomorrow morning?
+      - When does the sun start to rise?
+      - I want to know the exact time of sunrise.
+      - What is the sunrise time for this week?
+      - Tell me when the sun usually rises.
+      - At what time does the sun appear on the horizon?
+      - What is the exact moment of sunrise today?
+      - I would like to know when the sun rises every day.
+      - Give me the sunrise time.
+      - When can I see the sunrise?
+  - name: sunset
+    exec: exec_sunset
+    utterance:
+      - What time does the sun set today?
+      - When is sunset?
+      - Can you tell me the time of sunset?
+      - Give me the exact time of sunset.
+      - What is the horizon of sunset for today?
+      - At what time does the sun set this evening?
+      - When does the sun start to set?
+      - I want to know the precise time of sunset.
+      - What is the sunset time for this week?
+      - Tell me at what time the sun usually sets.
+      - At what time does the sun disappear below the horizon?
+      - What is the exact moment of sunset today?
+      - I would like to know when the sun sets each day.
+      - Give me the sunset time.
+      - When can I see the sunset?
