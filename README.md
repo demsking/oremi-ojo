@@ -9,7 +9,7 @@ developers with easy access to accurate weather and geocoding data.
 
 ## Documentation
 
-Found the Oremi Forecast deployment and API documentation at [https://demsking.gitlab.io/oremi-forecast).
+Found the Oremi Forecast deployment and API documentation at https://demsking.gitlab.io/oremi-forecast.
 
 ## Contribute
 
