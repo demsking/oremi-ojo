@@ -5,8 +5,8 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "oremi-forecast"
 version = "1.0.0"
-description = "A forward authentication proxy that integrates with the Logto Identity Provider"
-keywords = ["ghost"]
+description = "A comprehensive API for weather forecasts, geocoding, and pollen data"
+keywords = ["forecast", "air quality", "pollen", "geocoding"]
 authors = ["Sébastien Demanou <demsking@gmail.com>"]
 license = "MIT"
 readme = "README.md"
