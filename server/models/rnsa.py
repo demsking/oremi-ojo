@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 from dataclasses import dataclass
+from typing import Literal
 
 from dataclasses_json import dataclass_json
 from dataclasses_json import DataClassJsonMixin
@@ -37,4 +38,5 @@ class RNSAResponse(DataClassJsonMixin):
 @dataclass
 class PollenResponse(DataClassJsonMixin):
   pollen_names: str
-  level: str
+  level: int
+  risk: Literal['null', 'low', 'medium', 'high']

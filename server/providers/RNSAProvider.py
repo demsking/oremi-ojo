@@ -34,7 +34,7 @@ class RNSAProvider(Provider):
   See https://pollens.fr/
   """
   LEVEL: ClassVar[dict[int, str]] = {
-    0: 'null',
+    0: 'unknown',
     1: 'low',
     2: 'medium',
     3: 'high',
@@ -42,10 +42,7 @@ class RNSAProvider(Provider):
 
   def __init__(self) -> None:
     super().__init__('Réseau National de Surveillance Aérobiologique')
-    self.client = HttpClient(
-      base_url='https://pollens.fr',
-      expire_after=timedelta(minutes=60),
-    )
+    self.client = HttpClient(base_url='https://pollens.fr', expire_after=timedelta(minutes=60))
 
   async def fetch(self, *, lon: float, lat: float) -> PollenResponse:
     location = await Geocode.reverse(lat=lat, lon=lon)
@@ -57,8 +54,12 @@ class RNSAProvider(Provider):
 
       data = RNSAResponse.from_json(response.text)
       pollen_names = [pollen.pollenName for pollen in data.risks if pollen.level == data.riskLevel]
-      level = RNSAProvider.LEVEL[data.riskLevel]
+      risk = RNSAProvider.LEVEL[data.riskLevel]
 
-      return PollenResponse(pollen_names=', '.join(pollen_names), level=level)
+      return PollenResponse(
+        level=data.riskLevel,
+        risk=risk,
+        pollen_names=', '.join(pollen_names),
+      )
 
-    return None
+    return PollenResponse(level=0, risk='unknown', pollen_names='')
