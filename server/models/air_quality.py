@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 from dataclasses import dataclass
+from typing import Literal
 
 from dataclasses_json import dataclass_json
 from dataclasses_json import DataClassJsonMixin
@@ -47,7 +48,17 @@ class AirQualityData(DataClassJsonMixin):
 
 
 @dataclass
-class AirQualityResponse(DataClassJsonMixin):
-  value: str
-  unit: str
-  ranges: str
+class EAQIResponse(DataClassJsonMixin):
+  value: int
+  level: Literal['good', 'fair', 'moderate', 'poor', 'very poor', 'extremely poor', 'unknown']
+  unit: Literal['EAQI'] = 'EAQI'
+
+
+@dataclass
+class USAQIResponse(DataClassJsonMixin):
+  value: int
+  level: Literal['good', 'moderate', 'unhealthy for sensitive groups', 'unhealthy', 'very unhealthy', 'hazardous', 'unknown']
+  unit: Literal['USAQI'] = 'USAQI'
+
+
+AirQualityResponse = EAQIResponse | USAQIResponse
