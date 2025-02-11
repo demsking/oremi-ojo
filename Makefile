@@ -54,7 +54,7 @@ coverage-html: gen-tests
 	pytest --cov=server --cov-report=html
 
 open-docs:
-	open http://localhost:1111/docs
+	open http://localhost:21111/docs
 
 lint:
 	pre-commit run --all-files
@@ -106,7 +106,7 @@ image: build/context
 image-test:
 	docker build --debug . \
 	  --progress plain \
-	  --tag $(IMAGE_NAME):latest \
+	  --tag $(IMAGE_NAME):test \
 	  --build-arg APP_NAME=$(APP_NAME) \
 	  --build-arg APP_VERSION=$(APP_VERSION)
 
@@ -125,7 +125,7 @@ watch-image-test:
 	nodemon -e py -x $(MAKE) _watch-image-test
 
 testserver: image-test
-	docker run -it --rm -v /tmp/data:/data -p 1111:1111 -e ROOT_PATH=/publisher -e WORKER=1 demsking/oremi-forecast
+	docker run -it --rm -v /tmp/data:/data -p 1111:1111 -e ROOT_PATH=/publisher -e WORKER=1 $(IMAGE_NAME)
 
 publish: image-test
 	git commit pyproject.toml -m "Release $(APP_VERSION)"

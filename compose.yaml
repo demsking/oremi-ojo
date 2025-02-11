@@ -11,7 +11,7 @@ services:
       ROOT_PATH: /
       LOG_LEVEL: debug
     ports:
-      - 1111:1111
+      - 21111:1111
     develop:
       watch:
         - action: rebuild

@@ -5,7 +5,7 @@
 .venv/
 Dockerfile
 docker-compose.yaml
-test/
+tests/
 notebooks/
 __pycache__
 **/__pycache__
