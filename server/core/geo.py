@@ -13,12 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 import functools
-from dataclasses import dataclass
 from datetime import timedelta
 
-from dataclasses_json import dataclass_json
-from dataclasses_json import DataClassJsonMixin
-from dataclasses_json import Undefined
+from pydantic import BaseModel
 
 from .http import HttpClient
 
@@ -29,24 +26,20 @@ __all__ = [
 ]
 
 
-@dataclass_json(undefined=Undefined.EXCLUDE)
-@dataclass
-class Address(DataClassJsonMixin):
+class Address(BaseModel):
   country: str
   country_code: str
-  region: str | None = None
-  postcode: int | str | None = None
-  road: str | None = None
-  town: str | None = None
-  municipality: str | None = None
-  county: str | None = None
-  state: str | None = None
-  city: str | None = None
+  region: str = None
+  postcode: int | str = None
+  road: str = None
+  town: str = None
+  municipality: str = None
+  county: str = None
+  state: str = None
+  city: str = None
 
 
-@dataclass_json(undefined=Undefined.EXCLUDE)
-@dataclass
-class Location(DataClassJsonMixin):
+class Location(BaseModel):
   type: str
   name: str
   boundingbox: list[float]
@@ -87,7 +80,9 @@ class Geocode:
     )
 
   @classmethod
-  async def find(cls, query: str, addressdetails: bool = True, country_codes: list[str] | str | None = None, language_result: str = 'en') -> Location:
+  async def find(
+    cls, query: str, addressdetails: bool = True, country_codes: list[str] | str | None = None, language_result: str = 'en'
+  ) -> Location:
     """
     Return a location point by address.
 
@@ -119,7 +114,7 @@ class Geocode:
       },
     )
 
-    result = Location.schema().loads(response.text, many=True)
+    result = [Location(**item) for item in response.json()]
 
     if len(result) > 0:
       return result[0]
@@ -175,12 +170,12 @@ class Geocode:
     location = Location(
       type=data.get('type', ''),
       name=data.get('name', ''),
-      boundingbox=data.get('boundingbox', []),
+      boundingbox=[float(x) for x in data.get('boundingbox', [])],
       lat=float(data.get('lat', 0)),
       lon=float(data.get('lon', 0)),
       addresstype=data.get('addresstype', ''),
       display_name=data.get('display_name', ''),
-      address=Address.schema().load(data.get('address', {})),
+      address=Address.model_validate(data.get('address', {})),
     )
 
     return location
