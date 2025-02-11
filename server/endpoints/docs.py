@@ -42,6 +42,10 @@ def create_docs_endpoints(api: FastAPI) -> None:
   openapi_content = get_openapi_json()
   openapi_json_content = json.dumps(openapi_content)
 
+  @api.get('/', include_in_schema=False)
+  async def redirect_to_docs():
+    return HTMLResponse(status_code=307, headers={'Location': docs_path})
+
   @api.get(docs_path, response_class=HTMLResponse, include_in_schema=False)
   async def html_documentation():
     return f"""
