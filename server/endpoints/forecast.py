@@ -44,11 +44,11 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
   async def get_forecast(
     lat: float = Query(
       description='The latitude of the location for which the weather forecast is requested.',
-      example=48.8534951,
+      examples=[48.8534951],
     ),
     lon: float = Query(
       description='The longitude of the location for which the weather forecast is requested.',
-      example=2.3483915,
+      examples=[2.3483915],
     ),
   ) -> Response[ForecastResponse]:
     """
@@ -66,11 +66,11 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
   async def get_air_quality(
     lat: float = Query(
       description='The latitude of the location for which the air quality data is requested.',
-      example=48.8534951,
+      examples=[48.8534951],
     ),
     lon: float = Query(
       description='The longitude of the location for which the air quality data is requested.',
-      example=2.3483915,
+      examples=[2.3483915],
     ),
   ) -> Response[AirQualityResponse]:
     """
@@ -88,11 +88,11 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
   async def get_pollen(
     lat: float = Query(
       description='The latitude of the location for which the pollen data is requested.',
-      example=48.8534951,
+      examples=[48.8534951],
     ),
     lon: float = Query(
       description='The longitude of the location for which the pollen data is requested.',
-      example=2.3483915,
+      examples=[2.3483915],
     ),
   ) -> Response[PollenResponse]:
     """

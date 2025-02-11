@@ -24,7 +24,7 @@ def create_geocode_endpoints(tag: str, api: FastAPI) -> None:
   async def search(
     query: str = Query(
       description='The search query to find a location. This can be a city name, address, or landmark.',
-      example='Paris, France',
+      examples=['Paris, France'],
     ),
   ) -> Location:
     """
@@ -40,11 +40,11 @@ def create_geocode_endpoints(tag: str, api: FastAPI) -> None:
   async def reverse(
     lat: float = Query(
       description='The latitude of the location for which details are requested.',
-      example=48.8534951,
+      examples=[48.8534951],
     ),
     lon: float = Query(
       description='The longitude of the location for which details are requested.',
-      example=2.3483915,
+      examples=[2.3483915],
     ),
   ) -> Location:
     """
