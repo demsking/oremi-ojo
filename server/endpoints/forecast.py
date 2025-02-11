@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from typing import Generic
+from typing import TypeVar
+
 from fastapi import FastAPI
 from fastapi import Query
+from pydantic import BaseModel
 
 from ..providers.OpenMeteoAirQualityProvider import AirQualityResponse
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
@@ -21,6 +25,14 @@ from ..providers.OpenMeteoForecastProvider import ForecastResponse
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
 from ..providers.RNSAProvider import PollenResponse
 from ..providers.RNSAProvider import RNSAProvider
+
+
+ResponseData = TypeVar('ResponseData')
+
+
+class Response(BaseModel, Generic[ResponseData]):
+  provider: str
+  data: ResponseData
 
 
 def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
@@ -38,14 +50,17 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
       description='The longitude of the location for which the weather forecast is requested.',
       example=2.3483915,
     ),
-  ) -> ForecastResponse:
+  ) -> Response[ForecastResponse]:
     """
     Retrieve the weather forecast for a specific location.
 
     This endpoint provides detailed weather information, including temperature, humidity, wind direction,
     wind speed, sunrise, and sunset times, based on the provided latitude and longitude.
     """
-    return await forecast.fetch(lat=lat, lon=lon)
+    return Response(
+      provider=forecast.name,
+      data=await forecast.fetch(lat=lat, lon=lon),
+    )
 
   @api.get('/air-quality', tags=[tag])
   async def get_air_quality(
@@ -57,14 +72,17 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
       description='The longitude of the location for which the air quality data is requested.',
       example=2.3483915,
     ),
-  ) -> AirQualityResponse:
+  ) -> Response[AirQualityResponse]:
     """
     Retrieve the air quality data for a specific location.
 
     This endpoint provides detailed air quality information, including the Air Quality Index (AQI),
     PM2.5, PM10, NO₂, and O₃ levels, based on the provided latitude and longitude.
     """
-    return await air_quality.fetch(lat=lat, lon=lon)
+    return Response(
+      provider=air_quality.name,
+      data=await air_quality.fetch(lat=lat, lon=lon),
+    )
 
   @api.get('/pollen', tags=[tag])
   async def get_pollen(
@@ -76,11 +94,14 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
       description='The longitude of the location for which the pollen data is requested.',
       example=2.3483915,
     ),
-  ) -> PollenResponse:
+  ) -> Response[PollenResponse]:
     """
     Retrieve the pollen data for a specific location.
 
     This endpoint provides information about the pollen types and their levels (e.g., Grass, Birch, Olive)
     based on the provided latitude and longitude.
     """
-    return await rnsa.fetch(lat=lat, lon=lon)
+    return Response(
+      provider=rnsa.name,
+      data=await rnsa.fetch(lat=lat, lon=lon),
+    )
