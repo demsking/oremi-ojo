@@ -1,0 +1,44 @@
+{
+  "name": "Oremi Forecast",
+  "dockerComposeFile": "workspace.yaml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspaces",
+  "shutdownAction": "stopCompose",
+  "postCreateCommand": "poetry install",
+  "forwardPorts": [1111],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "ms-python.pylint",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "esbenp.prettier-vscode",
+        "GitHub.copilot"
+      ],
+      "settings": {
+        "files.exclude": {
+          "**/.devbox": true,
+          "**/.venv": true
+        },
+        "python.defaultInterpreterPath": "$POETRY_HOME/venv/bin/python",
+        "python.pythonPath": "$POETRY_HOME/venv/bin/python",
+        "python.terminal.activateEnvInCurrentTerminal": true,
+        "pylint.importStrategy": "fromEnvironment",
+        "editor.formatOnPaste": false,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "files.trimTrailingWhitespace": true,
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/usr/bin/bash"
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  }
+}
