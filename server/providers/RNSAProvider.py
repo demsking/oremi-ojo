@@ -33,6 +33,7 @@ class RNSAProvider(Provider):
 
   See https://pollens.fr/
   """
+
   LEVEL: ClassVar[dict[int, str]] = {
     0: 'unknown',
     1: 'low',

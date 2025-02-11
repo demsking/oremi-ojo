@@ -74,18 +74,20 @@ class OpenMeteoAirQualityProvider(Provider):
     current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
     current_time_str = current_time.isoformat()[0:-3]
 
-    response = await self.client.get('/v1/air-quality', params={
-      'latitude': lat,
-      'longitude': lon,
-      'hourly': 'european_aqi,us_aqi',
-      'start_date': current_time.date().isoformat(),
-      'end_date': current_time.date().isoformat(),
-    })
+    response = await self.client.get(
+      '/v1/air-quality',
+      params={
+        'latitude': lat,
+        'longitude': lon,
+        'hourly': 'european_aqi,us_aqi',
+        'start_date': current_time.date().isoformat(),
+        'end_date': current_time.date().isoformat(),
+      },
+    )
 
     data = AirQualityData.from_json(response.text)
 
-    if (USA_LATITUDE_RANGE[0] <= lat <= USA_LATITUDE_RANGE[1] and
-        USA_LONGITUDE_RANGE[0] <= lon <= USA_LONGITUDE_RANGE[1]):
+    if USA_LATITUDE_RANGE[0] <= lat <= USA_LATITUDE_RANGE[1] and USA_LONGITUDE_RANGE[0] <= lon <= USA_LONGITUDE_RANGE[1]:
       raw = data.hourly.us_aqi
       unit = data.hourly_units.us_aqi
       levels = USAGI_LEVELS
@@ -101,8 +103,4 @@ class OpenMeteoAirQualityProvider(Provider):
     air_quality = raw[index]
     level = OpenMeteoAirQualityProvider.determine_level(air_quality, levels)
 
-    return response_class(
-      value=air_quality,
-      level=level,
-      unit=unit
-    )
+    return response_class(value=air_quality, level=level, unit=unit)
