@@ -13,7 +13,6 @@
         "ms-python.pylint",
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "esbenp.prettier-vscode",
         "GitHub.copilot"
       ],
       "settings": {
@@ -30,11 +29,11 @@
         "editor.formatOnType": true,
         "files.trimTrailingWhitespace": true,
         "terminal.integrated.profiles.linux": {
-          "bash": {
-            "path": "/usr/bin/bash"
+          "sh": {
+            "path": "/bin/sh"
           }
         },
-        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.defaultProfile.linux": "sh",
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff"
         }

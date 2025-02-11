@@ -47,16 +47,19 @@ class OpenMeteoForecastProvider(Provider):
     current_time_str = current_time.isoformat()[0:-3]
     current_date = current_time.date().isoformat()
 
-    response = await self.client.get('/v1/forecast', params={
-      'latitude': lat,
-      'longitude': lon,
-      'hourly': 'temperature_2m,relativehumidity_2m,windspeed_10m',
-      'daily': 'sunrise,sunset',
-      'current_weather': 'true',
-      'timezone': 'auto',
-      'start_date': current_date,
-      'end_date': current_date,
-    })
+    response = await self.client.get(
+      '/v1/forecast',
+      params={
+        'latitude': lat,
+        'longitude': lon,
+        'hourly': 'temperature_2m,relativehumidity_2m,windspeed_10m',
+        'daily': 'sunrise,sunset',
+        'current_weather': 'true',
+        'timezone': 'auto',
+        'start_date': current_date,
+        'end_date': current_date,
+      },
+    )
 
     forecast = Forecast.from_json(response.text)
 
@@ -80,6 +83,6 @@ class OpenMeteoForecastProvider(Provider):
       humidity=f'{current_humidity}{forecast.hourly_units.relativehumidity_2m}',
       wind_direction=forecast.current_weather.winddirection,
       wind_speed=f'{current_windspeed} {forecast.hourly_units.windspeed_10m}',
-      sunrise=sunrise_date.time(),
-      sunset=sunset_date.time(),
+      sunrise=str(sunrise_date.time()),
+      sunset=str(sunset_date.time()),
     )

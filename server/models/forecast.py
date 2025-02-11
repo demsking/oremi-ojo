@@ -106,7 +106,7 @@ class Forecast(DataClassJsonMixin):
 class ForecastResponse(DataClassJsonMixin):
   temperature: str
   humidity: str
-  wind_direction: str
+  wind_direction: int
   wind_speed: str
-  sunrise: float
-  sunset: float
+  sunrise: str
+  sunset: str
