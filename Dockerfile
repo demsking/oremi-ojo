@@ -6,8 +6,8 @@ ENV PATH="/root/.local/bin:$PATH"
 ENV POETRY_HOME='/usr/local'
 ENV POETRY_VIRTUALENVS_CREATE=false
 
-# Set the shell to /bin/ash and enable pipefail
-SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+# Set the shell to /bin/sh and enable pipefail
+SHELL ["/bin/sh", "-eo", "pipefail", "-c"]
 
 # Install build dependencies
 RUN apk update \
@@ -21,6 +21,9 @@ RUN poetry install --no-root --no-interaction --no-ansi --only=main
 #
 ## Stage 2: Runtime environment
 FROM python:3.11-alpine3.19
+
+# Set the shell to /bin/sh and enable pipefail
+SHELL ["/bin/sh", "-eo", "pipefail", "-c"]
 
 # Copy built Python dependencies from the build-env stage
 COPY --from=build-env /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
