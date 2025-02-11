@@ -85,7 +85,7 @@ class OpenMeteoAirQualityProvider(Provider):
       },
     )
 
-    data = AirQualityData.from_json(response.text)
+    data = AirQualityData.model_validate_json(response.text)
 
     if USA_LATITUDE_RANGE[0] <= lat <= USA_LATITUDE_RANGE[1] and USA_LONGITUDE_RANGE[0] <= lon <= USA_LONGITUDE_RANGE[1]:
       raw = data.hourly.us_aqi

@@ -53,7 +53,7 @@ class RNSAProvider(Provider):
       logger.info(f'Fetching pollens data for French department {code}')
       response = await self.client.get(f'/risks/thea/counties/{code}')
 
-      data = RNSAResponse.from_json(response.text)
+      data = RNSAResponse.model_validate_json(response.text)
       pollen_names = [pollen.pollenName for pollen in data.risks if pollen.level == data.riskLevel]
       risk = RNSAProvider.LEVEL[data.riskLevel]
 

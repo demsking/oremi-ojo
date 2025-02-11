@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from dataclasses import dataclass
-
-from dataclasses_json import dataclass_json
-from dataclasses_json import DataClassJsonMixin
-from dataclasses_json import Undefined
+from pydantic import BaseModel
+from pydantic import Field
 
 
-@dataclass
-class CurrentWeather(DataClassJsonMixin):
+class CurrentWeather(BaseModel):
   time: str
   interval: int
   temperature: float
@@ -30,8 +26,7 @@ class CurrentWeather(DataClassJsonMixin):
   weathercode: int
 
 
-@dataclass
-class CurrentWeatherUnits(DataClassJsonMixin):
+class CurrentWeatherUnits(BaseModel):
   time: str
   interval: str
   temperature: str
@@ -41,41 +36,35 @@ class CurrentWeatherUnits(DataClassJsonMixin):
   weathercode: str
 
 
-@dataclass
-class Daily(DataClassJsonMixin):
+class Daily(BaseModel):
   time: list[str]
   sunrise: list[str]
   sunset: list[str]
 
 
-@dataclass
-class DailyUnits(DataClassJsonMixin):
+class DailyUnits(BaseModel):
   time: str
   sunrise: str
   sunset: str
 
 
-@dataclass
-class Hourly(DataClassJsonMixin):
+class Hourly(BaseModel):
   time: list[str]
-  temperature_2m: list[float]
-  relativehumidity_2m: list[int]
-  windspeed_10m: list[float]
+  temperature_2m: list[float] = Field(alias='temperature_2m')
+  relativehumidity_2m: list[int] = Field(alias='relativehumidity_2m')
+  windspeed_10m: list[float] = Field(alias='windspeed_10m')
 
 
-@dataclass
-class HourlyUnits(DataClassJsonMixin):
+class HourlyUnits(BaseModel):
   time: str
-  temperature_2m: str
-  relativehumidity_2m: str
-  windspeed_10m: str
+  temperature_2m: str = Field(alias='temperature_2m')
+  relativehumidity_2m: str = Field(alias='relativehumidity_2m')
+  windspeed_10m: str = Field(alias='windspeed_10m')
 
 
-@dataclass_json(undefined=Undefined.EXCLUDE)
-@dataclass
-class Forecast(DataClassJsonMixin):
+class Forecast(BaseModel):
   latitude: float
-  longitude: int
+  longitude: float
   generationtime_ms: float
   utc_offset_seconds: int
   timezone: str
@@ -89,21 +78,11 @@ class Forecast(DataClassJsonMixin):
   daily: Daily
 
   @classmethod
-  def from_dict(cls, data):
-    # Convert nested dictionaries to objects
-    data['current_weather_units'] = CurrentWeatherUnits(**data['current_weather_units'])
-    data['current_weather'] = CurrentWeather(**data['current_weather'])
-    data['hourly_units'] = HourlyUnits(**data['hourly_units'])
-    data['hourly'] = Hourly(**data['hourly'])
-    data['daily_units'] = DailyUnits(**data['daily_units'])
-    data['daily'] = Daily(**data['daily'])
-
-    # Create and return AirQualityData instance
-    return cls(**data)
+  def from_dict(cls, data: dict) -> 'Forecast':
+    return cls.model_validate(data)
 
 
-@dataclass
-class ForecastResponse(DataClassJsonMixin):
+class ForecastResponse(BaseModel):
   temperature: str
   humidity: str
   wind_direction: int

@@ -61,7 +61,7 @@ class OpenMeteoForecastProvider(Provider):
       },
     )
 
-    forecast = Forecast.from_json(response.text)
+    forecast = Forecast.model_validate_json(response.text)
 
     hourly_index = forecast.hourly.time.index(current_time_str)
     daily_index = forecast.daily.time.index(current_date)

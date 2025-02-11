@@ -12,31 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from dataclasses import dataclass
 from typing import Literal
 
-from dataclasses_json import dataclass_json
-from dataclasses_json import DataClassJsonMixin
-from dataclasses_json import Undefined
+from pydantic import BaseModel
 
 
-@dataclass
-class Risk(DataClassJsonMixin):
+class Risk(BaseModel):
   pollenName: str
   level: int
 
 
-@dataclass_json(undefined=Undefined.EXCLUDE)
-@dataclass
-class RNSAResponse(DataClassJsonMixin):
+class RNSAResponse(BaseModel):
   countyName: str
   countyNumber: int
   risks: list[Risk]
   riskLevel: int
 
 
-@dataclass
-class PollenResponse(DataClassJsonMixin):
+class PollenResponse(BaseModel):
   pollen_names: str
   level: int
   risk: Literal['null', 'low', 'medium', 'high']

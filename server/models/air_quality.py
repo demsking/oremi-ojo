@@ -12,31 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from dataclasses import dataclass
 from typing import Literal
 
-from dataclasses_json import dataclass_json
-from dataclasses_json import DataClassJsonMixin
-from dataclasses_json import Undefined
+from pydantic import BaseModel
 
 
-@dataclass
-class Hourly(DataClassJsonMixin):
+class Hourly(BaseModel):
   time: list[str]
   european_aqi: list[int]
   us_aqi: list[int]
 
 
-@dataclass
-class HourlyUnits(DataClassJsonMixin):
+class HourlyUnits(BaseModel):
   time: str
   european_aqi: str
   us_aqi: str
 
 
-@dataclass_json(undefined=Undefined.EXCLUDE)
-@dataclass
-class AirQualityData(DataClassJsonMixin):
+class AirQualityData(BaseModel):
   latitude: float
   longitude: float
   generationtime_ms: float
@@ -47,15 +40,13 @@ class AirQualityData(DataClassJsonMixin):
   hourly: Hourly
 
 
-@dataclass
-class EAQIResponse(DataClassJsonMixin):
+class EAQIResponse(BaseModel):
   value: int
   level: Literal['good', 'fair', 'moderate', 'poor', 'very poor', 'extremely poor', 'unknown']
   unit: Literal['EAQI'] = 'EAQI'
 
 
-@dataclass
-class USAQIResponse(DataClassJsonMixin):
+class USAQIResponse(BaseModel):
   value: int
   level: Literal['good', 'moderate', 'unhealthy for sensitive groups', 'unhealthy', 'very unhealthy', 'hazardous', 'unknown']
   unit: Literal['USAQI'] = 'USAQI'
