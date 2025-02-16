@@ -13,8 +13,7 @@ install:
 	poetry install
 
 gen-tests:
-	dotenv -- python gen.py
-	pre-commit run double-quote-string-fixer
+	python gen.py
 
 test: gen-tests
 	pytest -vv
