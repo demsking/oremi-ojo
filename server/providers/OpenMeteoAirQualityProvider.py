@@ -13,10 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 import datetime  # use implicit import to enable datatime mocking
+import logging
 from datetime import timedelta
 
+from ..core.controller import Controller
 from ..core.http import HttpClient
-from ..core.logger import logger
 from ..core.provider import Provider
 from ..models.air_quality import AirQualityData
 from ..models.air_quality import AirQualityResponse
@@ -54,8 +55,8 @@ class OpenMeteoAirQualityProvider(Provider):
   See https://open-meteo.com/en/docs/air-quality-api
   """
 
-  def __init__(self) -> None:
-    super().__init__('Open-Météo')
+  def __init__(self, controller: Controller, logger: logging.Logger) -> None:
+    super().__init__('Open-Météo', controller, logger)
     self.client = HttpClient(
       base_url='https://air-quality-api.open-meteo.com',
       expire_after=timedelta(minutes=30),
@@ -69,7 +70,7 @@ class OpenMeteoAirQualityProvider(Provider):
     return 'unknown'
 
   async def fetch(self, *, lon: float, lat: float) -> AirQualityResponse:
-    logger.info(f'Fetching air quality data for geo ({lon}, {lat})')
+    self.logger.info(f'Fetching air quality data for geo ({lon}, {lat})')
 
     current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
     current_time_str = current_time.isoformat()[0:-3]

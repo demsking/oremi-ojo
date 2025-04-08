@@ -53,7 +53,7 @@ def create_docs_endpoints(api: FastAPI) -> None:
       <html>
         <head>
           <meta charset="utf-8"/>
-          <title>Oremi Forecast Documentation</title>
+          <title>Oremi Weather Agent Documentation</title>
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             .open-api-client-button {{

@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import logging
 from datetime import timedelta
 from typing import ClassVar
 
+from ..core.controller import Controller
 from ..core.geo import Geocode
 from ..core.http import HttpClient
-from ..core.logger import logger
 from ..core.provider import Provider
 from ..models.rnsa import PollenResponse
 from ..models.rnsa import RNSAResponse
@@ -41,8 +42,8 @@ class RNSAProvider(Provider):
     3: 'high',
   }
 
-  def __init__(self) -> None:
-    super().__init__('Réseau National de Surveillance Aérobiologique')
+  def __init__(self, controller: Controller, logger: logging.Logger) -> None:
+    super().__init__('Réseau National de Surveillance Aérobiologique', controller, logger)
     self.client = HttpClient(base_url='https://pollens.fr', expire_after=timedelta(minutes=60))
 
   async def fetch(self, *, lon: float, lat: float) -> PollenResponse:
@@ -50,11 +51,11 @@ class RNSAProvider(Provider):
 
     if location and location.address.country_code == 'fr' and location.address.postcode:
       code = f'{location.address.postcode}'[0:2]
-      logger.info(f'Fetching pollens data for French department {code}')
+      self.logger.info(f'Fetching pollens data for French department {code}')
       response = await self.client.get(f'/risks/thea/counties/{code}')
 
       data = RNSAResponse.model_validate_json(response.text)
-      pollen_names = [pollen.pollenName for pollen in data.risks if pollen.level == data.riskLevel]
+      pollen_names = [pollen.pollenName for pollen in data.risks if data.riskLevel and pollen.level == data.riskLevel]
       risk = RNSAProvider.LEVEL[data.riskLevel]
 
       return PollenResponse(

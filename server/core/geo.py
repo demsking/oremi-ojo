@@ -12,21 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import functools
 from datetime import timedelta
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from .http import HttpClient
+# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 
-__all__ = [
-  'Geocode',
-  'Location',
-  'NotFoundLocationException',
-]
 
+class LocationAddress(BaseModel):
+  model_config = ConfigDict(extra='ignore')
 
-class Address(BaseModel):
   country: str
   country_code: str
   region: str = None
@@ -47,19 +57,10 @@ class Location(BaseModel):
   lon: float
   addresstype: str
   display_name: str
-  address: Address
+  address: LocationAddress
 
   def __str__(self) -> str:
-    if self.display_name:
-      return self.display_name
-
-    info = [
-      self.address.city,
-      self.address.region,
-      self.address.country,
-    ]
-
-    return ', '.join(info)
+    return self.display_name
 
 
 class NotFoundLocationException(Exception):
@@ -68,16 +69,44 @@ class NotFoundLocationException(Exception):
   """
 
 
-class Geocode:
-  _http_client: HttpClient | None = None
+_http_client = HttpClient(
+  base_url='https://nominatim.openstreetmap.org',
+  expire_after=timedelta(days=30),
+)
 
+
+class Geocode:
   @classmethod
-  @functools.lru_cache
-  def _get_http_client(cls) -> HttpClient:
-    return HttpClient(
-      base_url='https://nominatim.openstreetmap.org',
-      expire_after=timedelta(days=30),
+  async def search(
+    cls,
+    query: str,
+    limit: int = 10,
+    addressdetails: bool = True,
+    country_codes: list[str] | str | None = None,
+    language_result: str = 'en',
+  ) -> list[Location]:
+    params = {
+      'q': query,
+      'limit': limit,
+      'format': 'json',
+      'addressdetails': 1 if addressdetails else 0,
+    }
+
+    if isinstance(country_codes, list) and len(country_codes) > 0:
+      params['countrycodes'] = ','.join(country_codes)
+
+    # See https://nominatim.org/release-docs/develop/api/Search
+    response = await _http_client.get(
+      url='/search',
+      params=params,
+      headers={
+        'Accept-Language': language_result,
+      },
     )
+
+    result = [Location(**item) for item in response.json()]
+
+    return result
 
   @classmethod
   async def find(
@@ -96,25 +125,12 @@ class Geocode:
       Location | None: A Location object if found, otherwise None.
     """
 
-    params = {
-      'q': query,
-      'format': 'json',
-      'addressdetails': 1 if addressdetails else 0,
-    }
-
-    if isinstance(country_codes, list) and len(country_codes) > 0:
-      params['countrycodes'] = ','.join(country_codes)
-
-    # See https://nominatim.org/release-docs/develop/api/Search
-    response = await cls._get_http_client().get(
-      url='/search',
-      params=params,
-      headers={
-        'Accept-Language': language_result,
-      },
+    result = await cls.search(
+      query,
+      limit=1,
+      country_codes=country_codes,
+      language_result=language_result,
     )
-
-    result = [Location(**item) for item in response.json()]
 
     if len(result) > 0:
       return result[0]
@@ -153,7 +169,7 @@ class Geocode:
     }
 
     # See https://nominatim.org/release-docs/develop/api/Reverse
-    response = await cls._get_http_client().get(
+    response = await _http_client.get(
       url='/reverse',
       params=params,
       headers={
@@ -175,7 +191,7 @@ class Geocode:
       lon=float(data.get('lon', 0)),
       addresstype=data.get('addresstype', ''),
       display_name=data.get('display_name', ''),
-      address=Address.model_validate(data.get('address', {})),
+      address=LocationAddress.model_validate(data.get('address', {})),
     )
 
     return location

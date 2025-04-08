@@ -73,7 +73,7 @@ from server import api
 client = TestClient(api, backend='asyncio')
 
 """
-  operation_id = details.get('operationId', f"{method}_{path.replace('/', '_')}")
+  operation_id = details.get('operationId', f'{method}_{path.replace("/", "_")}')
   summary = details.get('summary', operation_id)
 
   # Handle request body examples
@@ -187,15 +187,17 @@ def create_params_fixtures_content(param):
 
 # Function to create fixtures file content for POST method payloads and path params
 def create_fixtures_content(paths):
-  content = '\n'.join([
-    '# pylint: disable=wildcard-import,unused-wildcard-import,invalid-name,line-too-long',
-    'import pytest\n\n',
-  ])
+  content = '\n'.join(
+    [
+      '# pylint: disable=wildcard-import,unused-wildcard-import,invalid-name,line-too-long',
+      'import pytest\n\n',
+    ]
+  )
 
   for path, methods in paths.items():
     for method, details in methods.items():
       if method.lower() in ['post', 'put', 'patch']:
-        operation_id = details.get('operationId', f"{method}_{path.replace('/', '_')}")
+        operation_id = details.get('operationId', f'{method}_{path.replace("/", "_")}')
         schema = details.get('requestBody', {}).get('content', {}).get('application/json', {}).get('schema', {})
         example_str = parse_schema_example(schema)
 

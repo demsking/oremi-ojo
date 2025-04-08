@@ -1,0 +1,150 @@
+# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+from fastapi import FastAPI
+from fastapi import HTTPException
+from fastapi import Query
+
+from ..core.controller import Controller
+from ..providers.OpenMeteoAirQualityProvider import AirQualityResponse
+from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
+from ..providers.OpenMeteoForecastProvider import ForecastResponse
+from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
+from ..providers.RNSAProvider import PollenResponse
+from ..providers.RNSAProvider import RNSAProvider
+
+
+def create_generative_endpoints(
+  tag: str,
+  api: FastAPI,
+  controller: Controller,
+  forecast: OpenMeteoForecastProvider,
+  air_quality: OpenMeteoAirQualityProvider,
+  rnsa=RNSAProvider,
+) -> None:
+  example_response = Controller.Response[ForecastResponse | AirQualityResponse | PollenResponse].model_validate(
+    {
+      'provider': 'Open-Météo',
+      'message': "Il fait 12 degrés Celsius à Paris aujourd'hui, avec une humideur de 37 pour cent et un vent doux à 4,3 kilomètres par heure. Il commence à se lever à 7h13 et se couche à 20h31. C'est un excellent temps pour sortir et profiter du soleil.",
+      'data': {
+        'temperature': '12.3°C',
+        'humidity': '37%',
+        'wind_speed': '4.3 km/h',
+        'sunrise': '07:13:00',
+        'sunset': '20:31:00',
+      },
+      'location': {
+        'type': 'administrative',
+        'name': 'Paris',
+        'boundingbox': [48.8155755, 48.902156, 2.224122, 2.4697602],
+        'lat': 48.8534951,
+        'lon': 2.3483915,
+        'addresstype': 'city',
+        'display_name': 'Paris, Ile-de-France, Metropolitan France, France',
+        'address': {
+          'country': 'France',
+          'country_code': 'fr',
+          'region': 'Metropolitan France',
+          'state': 'Ile-de-France',
+          'city': 'Paris',
+        },
+      },
+    }
+  )
+
+  @api.get(
+    '/generate',
+    tags=[tag],
+    responses={
+      200: {
+        'content': {
+          'application/json': {
+            'example': example_response,
+          },
+        },
+      },
+    },
+  )
+  async def ask(
+    q: str = Query(
+      description='The user question to generate a response from.',
+      examples=[
+        'What is the weather in Paris today?',
+        'Quel temps fait-il à Paris ?',
+        'What is the air quality in Paris today?',
+        "Quelle est l'air qualité à Paris aujourd'hui ?",
+        'What is the pollen count in Paris today?',
+        "Quel est le niveau de pollens à Paris aujourd'hui ?",
+        'Is it sunny in Paris tomorrow?',
+        "Est-ce qu'il fera beau à Paris demain ?",
+        'How windy is it in Paris right now?',
+        'Quelle est la vitesse du vent à Paris en ce moment ?',
+        'What time is sunrise in Paris?',
+        'À quelle heure va se lever le soleil à Paris ?',
+        'À quelle heure va se coucher le soleil à Paris ?',
+        'Va-t-il pleuvoir en soirée sur Paris ?',
+        'Will it rain in Paris tomorrow?',
+        'Va-t-il pleuvoir à Paris demain ?',
+      ],
+    ),
+    timezone: str | None = Query(
+      default=None,
+      description='The timezone identifier for the location for which the response is generated.',
+      examples=['Europe/Paris', 'Africa/Douala', 'Africa/Lagos', 'America/New_York', 'Asia/Tokyo'],
+    ),
+  ) -> Controller.Response[ForecastResponse | AirQualityResponse | PollenResponse]:
+    """
+    This endpoint allows users to generate responses based on their queries.
+    It determines the requested service, such as weather, air quality, or
+    pollen count, and retrieves the relevant data for a specified or inferred
+    location.
+
+    Users can input a question describing the information they need, such as
+    the weather or air quality for a specific location. The system will
+    analyze the query to identify the requested service and location. If the
+    location is not explicitly provided, the system will attempt to infer it
+    from the query.
+
+    The endpoint supports multiple services, including weather forecasts, air
+    quality data, and pollen count information. Depending on the identified
+    service, the appropriate provider will be used to fetch the data.
+
+    If the service or location cannot be determined from the user input, the
+    endpoint will return an error indicating the issue. This ensures that
+    users receive clear feedback when their query cannot be processed.
+    """
+    service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone)
+
+    if service:
+      location = location or await controller.location_agent.get_user_input_location(q, timezone=timezone)
+
+      if location:
+        provider = None
+        data = None
+
+        if service == 'weather':
+          provider = forecast.name
+          data = await forecast.fetch(lat=location.lat, lon=location.lon, timezone=timezone)
+        elif service == 'air-quality':
+          provider = air_quality.name
+          data = await air_quality.fetch(lat=location.lat, lon=location.lon)
+        elif service == 'pollen':
+          provider = rnsa.name
+          data = await rnsa.fetch(lat=location.lat, lon=location.lon)
+
+        if provider and data:
+          return await controller.generate_response(q, provider, location, data)
+
+      raise HTTPException(status_code=400, detail=f'No location found for user input "{q}".')
+    raise HTTPException(status_code=400, detail=f'Unable to identify service for user input: "{q}".')

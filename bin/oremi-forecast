@@ -18,4 +18,4 @@
 # Enable exit on error and exit on unset variables
 set -eu
 
-python /opt/oremi-forecast/server $@
+python /opt/oremi-weather-agent/server $@

@@ -4,13 +4,13 @@
   "formatters": {
     "default": {
       "()": "uvicorn.logging.DefaultFormatter",
-      "fmt": "%(asctime)s - oremi-forecast - %(levelname)-s - %(message)s",
+      "fmt": "%(asctime)s - oremi-weather-agent - %(levelname)-s - %(message)s",
       "datefmt": "%Y-%m-%d %H:%M:%S",
       "use_colors": true
     },
     "access": {
       "()": "uvicorn.logging.AccessFormatter",
-      "fmt": "%(asctime)s - oremi-forecast - HTTP - %(client_addr)s - \"%(request_line)s\" %(status_code)s",
+      "fmt": "%(asctime)s - oremi-weather-agent - HTTP - %(client_addr)s - \"%(request_line)s\" %(status_code)s",
       "datefmt": "%Y-%m-%d %H:%M:%S",
       "use_colors": true
     }

@@ -1,25 +1,31 @@
-**Oremi Forecast** is a powerful and user-friendly API for retrieving weather
-forecasts, geographical location data, and server-related information. Built
-with FastAPI and designed to run in a Docker container, Oremi Forecast provides
-developers with easy access to accurate weather and geocoding data.
+**Oremi Weather Agent** is a powerful and user-friendly API for retrieving weather
+forecasts, air quality data, pollen levels, geographical location data, and
+server-related information. Built with FastAPI and designed to run in a Docker
+container, Oremi Weather Agent provides developers with easy access to accurate
+weather and geocoding data.
 
 ## Features
 
 - **Weather Forecasts**: Retrieve detailed weather information, including
   temperature, humidity, wind speed, wind direction, sunrise, and sunset times.
-- **Pollen Data**: Access pollen levels and types (e.g., grass, birch, olive)
-  for specific locations, helping users manage allergies and plan outdoor
-  activities.
+- **Air Quality Data**: Access air quality metrics such as AQI, PM2.5, PM10,
+  NO₂, and O₃ levels for specific locations.
+- **Pollen Data**: Get information about pollen levels and types (e.g., grass,
+  birch, olive) to help manage allergies and plan outdoor activities.
 - **Geocoding**: Perform forward and reverse geocoding to find locations by
   name, address, or coordinates.
+- **Generative Responses**: Use natural language queries to retrieve weather,
+  air quality, or pollen data for specific locations.
 - **Caching**: Supports caching of data to improve performance and reduce
   redundant API calls.
-- **Dockerized**: Easily deployable using the `demsking/oremi-forecast` Docker
-  image.
+- **Dockerized**: Easily deployable using the [`demsking/oremi-weather-agent`](https://hub.docker.com/r/demsking/oremi-weather-agent)
+  Docker image.
 
-## Docker Image
+## Deployment
 
-The [`demsking/oremi-forecast`](https://hub.docker.com/r/demsking/oremi-forecast)
+### Docker Image
+
+The [`demsking/oremi-weather-agent`](https://hub.docker.com/r/demsking/oremi-weather-agent)
 Docker image is officially available on Docker Hub, supporting both
 `linux/amd64` and `linux/arm64` platforms. The image is configured to expose
 port `1111`, which serves the API and documentation endpoints.
@@ -27,22 +33,74 @@ port `1111`, which serves the API and documentation endpoints.
 The local documentation can be accessed at `http://localhost:1111/docs` for easy
 reference on available endpoints and usage instructions.
 
+### Deploy with Docker
+
+Use the official Docker image [`demsking/oremi-weather-agent`](https://hub.docker.com/r/demsking/oremi-weather-agent)
+to run Oremi Weather Agent:
+
+```sh
+docker run -d --env-file <path_to_env_file> -p 1111:1111 demsking/oremi-weather-agent
+```
+
+Replace `<path_to_env_file>` with the path to your
+[environment variables](#description/environment-variables) file containing the
+necessary configurations.
+
+### Deploy with Docker Compose
+
+Create a `compose.yml` file:
+
+```yaml
+services:
+  agent:
+    image: demsking/oremi-weather-agent
+    depends_on:
+      - ollama
+    volumes:
+      - ~/.config/oremi-weather-agent:/var/config/oremi-weather-agent
+      - ~/.cache/oremi-weather-agent:/var/cache/oremi-weather-agent
+    environment:
+      OLLAMA_BASEURL: http://ollama:11434
+
+  ollama:
+    image: ollama/ollama
+    restart: always
+    runtime: nvidia
+    volumes:
+      - ~/.ollama:/root/.ollama
+```
+
+Run the container using `docker compose`:
+
+```sh
+docker compose up -d
+```
+
 ## Environment Variables
 
-When configuring **Oremi Forecast**, several environment variables are used to
+When configuring **Oremi Weather Agent**, several environment variables are used to
 control its behavior and connect with external services. Below is a breakdown
 of these variables, grouped by their purpose.
 
-### HTTP and Caching Configuration
+### HTTP Configuration
+
+- **HOST**: The host address on which the application will listen. Default is `"127.0.0.1"`.
+- **PORT**: The port number on which the application will listen. Default is `5020`.
+- **USER_AGENT**: User agent string for HTTP requests. This string identifies
+  the application and its version in HTTP requests. Default is
+  `"<APP_NAME>/<APP_VERSION>"`.
+
+### Caching Configuration
 
 These variables control HTTP request behavior and caching settings.
 
-- **HTTP_AGENT**:
-  User agent string for HTTP requests. This string identifies the application
-  and its version in HTTP requests. Defaults to `'oremi-forecast/<version>'`.
-
 - **CACHE_DIR**:
   The directory in which to store cached data. Defaults to `'/usr/local/cache'`.
+
+### Ollama Configuration
+
+- **OLLAMA_BASEURL**: Base URL of the Ollama API. Required for communication with Ollama services.
+- **OLLAMA_MODEL**: Name of the model for NLP processing. Default is `"demsking/oremi:latest"`.
 
 ### CORS Configuration
 

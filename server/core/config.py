@@ -13,21 +13,44 @@
 # limitations under the License.
 # ==============================================================================
 import multiprocessing
+import os
 
 from oremi_core.vars import getenv
 
 from .package import APP_NAME
 from .package import APP_VERSION
 
-HTTP_AGENT = getenv('USER_AGENT', default=f'{APP_NAME}/{APP_VERSION}')
+HOST = getenv('HOST', default='127.0.0.1')
+"""
+Host address to listen on.
+"""
+
+PORT = getenv('PORT', default=1111, expected_type=int)
+"""
+Port number to listen on.
+"""
+
+OLLAMA_BASEURL = getenv('OLLAMA_BASEURL')
+"""
+Base URL of the Ollama API.
+Required for communication with Ollama services.
+"""
+
+OLLAMA_MODEL = getenv('OLLAMA_MODEL', default='demsking/oremi:latest')
+"""
+Name of the model for NLP processing.
+Default: demsking/oremi:latest.
+"""
+
+USER_AGENT = getenv('USER_AGENT', default=f'{APP_NAME}/{APP_VERSION}')
 """
 User agent string for HTTP requests.
 
 This string identifies the application and its version in HTTP requests.
 """
 
-CACHE_DIR = getenv('CACHE_DIR', default='~/.cache')
-"""The directory in which to store cached data. Defaults to '~/.cache'."""
+CACHE_DIR = getenv('CACHE_DIR', default=os.path.expanduser(f'~/.cache/{APP_NAME}'))
+"""The directory in which to store cached data."""
 
 ALLOWED_ORIGINS = getenv('CORS_ALLOWED_ORIGINS', expected_type=list, default=[])
 """A list of allowed origins for Cross-Origin Resource Sharing (CORS). This

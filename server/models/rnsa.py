@@ -32,4 +32,4 @@ class RNSAResponse(BaseModel):
 class PollenResponse(BaseModel):
   pollen_names: str
   level: int
-  risk: Literal['null', 'low', 'medium', 'high']
+  risk: Literal['unknown', 'low', 'medium', 'high']

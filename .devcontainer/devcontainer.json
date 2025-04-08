@@ -1,7 +1,8 @@
 {
-  "name": "Oremi Forecast",
+  "name": "Oremi Weather Agent",
   "dockerComposeFile": "workspace.yaml",
   "service": "devcontainer",
+  "runServices": ["ollama"],
   "workspaceFolder": "/workspaces",
   "shutdownAction": "stopCompose",
   "postCreateCommand": "poetry install",

@@ -1,4 +1,4 @@
-# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2025 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,17 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import os
-import sys
-import tomllib
+from datetime import datetime
 
-_current_dir = os.path.dirname(os.path.abspath(__file__))
-_pyproject_path = os.path.join(_current_dir, 'pyproject.toml')
+import pytz
 
-with open(_pyproject_path, 'rb') as file:
-  value = tomllib.load(file)['tool']['poetry'][sys.argv[1]]
 
-if isinstance(value, list):
-  value = ', '.join(value)
+def get_current_datetime(timezone: str) -> datetime:
+  tz = pytz.timezone(timezone)
 
-print(value)
+  return datetime.now(tz)

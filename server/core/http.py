@@ -20,7 +20,7 @@ import hishel
 import httpx
 
 from .config import CACHE_DIR
-from .config import HTTP_AGENT
+from .config import USER_AGENT
 from .logger import logger
 
 __all__ = [
@@ -47,9 +47,11 @@ class HttpClient(hishel.AsyncCacheClient):
     )
 
     _headers = headers or {}
-    _headers.update({
-      'User-Agent': HTTP_AGENT,
-    })
+    _headers.update(
+      {
+        'User-Agent': USER_AGENT,
+      }
+    )
 
     super().__init__(
       base_url=base_url,
@@ -92,7 +94,13 @@ class HttpClient(hishel.AsyncCacheClient):
     logger.debug(f'{method} {self.base_url}{url}{url_params} - json={json} - headers={headers}')
 
     response = await super().request(
-      method, url, params=params, json=json, data=data, headers=headers, **kwargs,
+      method,
+      url,
+      params=params,
+      json=json,
+      data=data,
+      headers=headers,
+      **kwargs,
     )
 
     if response.status_code == 422:

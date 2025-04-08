@@ -19,6 +19,7 @@ from fastapi import FastAPI
 from fastapi import Query
 from pydantic import BaseModel
 
+from ..core.controller import Controller
 from ..providers.OpenMeteoAirQualityProvider import AirQualityResponse
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoForecastProvider import ForecastResponse
@@ -35,11 +36,14 @@ class Response(BaseModel, Generic[ResponseData]):
   data: ResponseData
 
 
-def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
-  forecast = OpenMeteoForecastProvider()
-  air_quality = OpenMeteoAirQualityProvider()
-  rnsa = RNSAProvider()
-
+def create_forecast_endpoints(
+  tag: str,
+  api: FastAPI,
+  controller: Controller,
+  forecast: OpenMeteoForecastProvider,
+  air_quality: OpenMeteoAirQualityProvider,
+  rnsa=RNSAProvider,
+) -> None:
   @api.get('/forecast', tags=[tag])
   async def get_forecast(
     lat: float = Query(
@@ -50,16 +54,23 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
       description='The longitude of the location for which the weather forecast is requested.',
       examples=[2.3483915],
     ),
+    timezone: str = Query(
+      default='auto',
+      description='The timezone identifier for the location for which the weather forecast is requested.',
+      examples=['Africa/Douala', 'Europe/Paris'],
+    ),
   ) -> Response[ForecastResponse]:
     """
     Retrieve the weather forecast for a specific location.
 
-    This endpoint provides detailed weather information, including temperature, humidity, wind direction,
-    wind speed, sunrise, and sunset times, based on the provided latitude and longitude.
+    This endpoint provides detailed weather information for a given latitude
+    and longitude. The data includes temperature, humidity, wind direction,
+    wind speed, sunrise, and sunset times. Users can also specify a timezone
+    to adjust the forecast data accordingly.
     """
     return Response(
       provider=forecast.name,
-      data=await forecast.fetch(lat=lat, lon=lon),
+      data=await forecast.fetch(lat=lat, lon=lon, timezone=timezone),
     )
 
   @api.get('/air-quality', tags=[tag])
@@ -72,16 +83,23 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
       description='The longitude of the location for which the air quality data is requested.',
       examples=[2.3483915],
     ),
+    timezone: str = Query(
+      default='auto',
+      description='The timezone identifier for the location for which the air quality data is requested.',
+      examples=['Africa/Douala', 'Europe/Paris'],
+    ),
   ) -> Response[AirQualityResponse]:
     """
     Retrieve the air quality data for a specific location.
 
-    This endpoint provides detailed air quality information, including the Air Quality Index (AQI),
-    PM2.5, PM10, NO₂, and O₃ levels, based on the provided latitude and longitude.
+    This endpoint provides detailed air quality information for a given
+    latitude and longitude. The data includes metrics such as the Air Quality
+    Index (AQI), PM2.5, PM10, NO₂, and O₃ levels. Users can specify a timezone
+    to adjust the data accordingly.
     """
     return Response(
       provider=air_quality.name,
-      data=await air_quality.fetch(lat=lat, lon=lon),
+      data=await air_quality.fetch(lat=lat, lon=lon, timezone=timezone),
     )
 
   @api.get('/pollen', tags=[tag])
@@ -98,8 +116,10 @@ def create_forecast_endpoints(tag: str, api: FastAPI) -> None:
     """
     Retrieve the pollen data for a specific location.
 
-    This endpoint provides information about the pollen types and their levels (e.g., Grass, Birch, Olive)
-    based on the provided latitude and longitude.
+    This endpoint provides information about pollen levels for a given
+    latitude and longitude. The data includes details about various pollen
+    types, such as Grass, Birch, and Olive, along with their respective
+    levels.
     """
     return Response(
       provider=rnsa.name,

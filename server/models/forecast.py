@@ -13,56 +13,46 @@
 # limitations under the License.
 # ==============================================================================
 from pydantic import BaseModel
-from pydantic import Field
-
-
-class CurrentWeather(BaseModel):
-  time: str
-  interval: int
-  temperature: float
-  windspeed: float
-  winddirection: int
-  is_day: int
-  weathercode: int
-
-
-class CurrentWeatherUnits(BaseModel):
-  time: str
-  interval: str
-  temperature: str
-  windspeed: str
-  winddirection: str
-  is_day: str
-  weathercode: str
+from pydantic import ConfigDict
 
 
 class Daily(BaseModel):
+  model_config = ConfigDict(extra='ignore')
+
   time: list[str]
   sunrise: list[str]
   sunset: list[str]
 
 
 class DailyUnits(BaseModel):
+  model_config = ConfigDict(extra='ignore')
+
   time: str
   sunrise: str
   sunset: str
 
 
 class Hourly(BaseModel):
+  model_config = ConfigDict(extra='ignore')
+
   time: list[str]
-  temperature_2m: list[float] = Field(alias='temperature_2m')
-  relativehumidity_2m: list[int] = Field(alias='relativehumidity_2m')
-  windspeed_10m: list[float] = Field(alias='windspeed_10m')
+  temperature_2m: list[float]
+  relativehumidity_2m: list[int]
+  windspeed_10m: list[float]
 
 
 class HourlyUnits(BaseModel):
+  model_config = ConfigDict(extra='ignore')
+
   time: str
-  temperature_2m: str = Field(alias='temperature_2m')
-  relativehumidity_2m: str = Field(alias='relativehumidity_2m')
-  windspeed_10m: str = Field(alias='windspeed_10m')
+  temperature_2m: str
+  relativehumidity_2m: str
+  windspeed_10m: str
 
 
 class Forecast(BaseModel):
+  model_config = ConfigDict(extra='ignore')
+
   latitude: float
   longitude: float
   generationtime_ms: float
@@ -70,22 +60,16 @@ class Forecast(BaseModel):
   timezone: str
   timezone_abbreviation: str
   elevation: int
-  current_weather_units: CurrentWeatherUnits
-  current_weather: CurrentWeather
   hourly_units: HourlyUnits
   hourly: Hourly
   daily_units: DailyUnits
   daily: Daily
 
-  @classmethod
-  def from_dict(cls, data: dict) -> 'Forecast':
-    return cls.model_validate(data)
-
 
 class ForecastResponse(BaseModel):
   temperature: str
   humidity: str
-  wind_direction: int
+  # wind_direction: int
   wind_speed: str
   sunrise: str
   sunset: str

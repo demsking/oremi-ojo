@@ -13,10 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 import datetime  # use implicit import to enable datatime mocking
+import logging
 from datetime import timedelta
 
+import openmeteo_requests
+import requests_cache
+from retry_requests import retry
+
+from ..core.config import CACHE_DIR
+from ..core.controller import Controller
 from ..core.http import HttpClient
-from ..core.logger import logger
 from ..core.provider import Provider
 from ..models.forecast import Forecast
 from ..models.forecast import ForecastResponse
@@ -25,12 +31,17 @@ from ..models.forecast import ForecastResponse
 class OpenMeteoForecastProvider(Provider):
   format: str = '%Y-%m-%dT%H:%M'
 
-  def __init__(self) -> None:
-    super().__init__('Open-Météo')
+  def __init__(self, controller: Controller, logger: logging.Logger) -> None:
+    super().__init__('Open-Météo', controller, logger)
     self.client = HttpClient(
       base_url='https://api.open-meteo.com',
       expire_after=timedelta(minutes=30),
     )
+
+    # Setup the Open-Meteo API client with cache and retry on error
+    cache_session = requests_cache.CachedSession(CACHE_DIR, expire_after=3600)
+    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    self.openmeteo = openmeteo_requests.Client(session=retry_session)
 
   @staticmethod
   def get_wind_direction(wind_direction: int) -> str:
@@ -40,8 +51,50 @@ class OpenMeteoForecastProvider(Provider):
 
     return directions[index]
 
-  async def _fetch(self, *, lon: float, lat: float) -> tuple[str, int, int, Forecast]:
-    logger.info(f'Fetching forecast for geo ({lon}, {lat})')
+  # async def _fetch_daily(self, *, lon: float, lat: float, timezone: str) -> tuple[str, int, int, Forecast]:
+  #   self.logger.info(f'Fetching forecast for geo ({lon}, {lat})')
+
+  #   current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
+  #   current_date = current_time.date().isoformat()
+
+  #   url = 'https://api.open-meteo.com/v1/forecast'
+  #   params = {
+  #     'latitude': lat,
+  #     'longitude': lon,
+  #     'daily': [
+  #       'weather_code',
+  #       'temperature_2m_max',
+  #       'temperature_2m_min',
+  #       'sunrise',
+  #       'sunset',
+  #       'rain_sum',
+  #       'uv_index_max',
+  #       'wind_speed_10m_max',
+  #       'wind_direction_10m_dominant',
+  #       'wind_gusts_10m_max',
+  #     ],
+  #     'timezone': timezone,
+  #     'start_date': current_date,
+  #     'end_date': current_date,
+  #   }
+
+  #   responses = self.openmeteo.weather_api(url, params=params)
+
+  #   # Process daily data. The order of variables needs to be the same as requested.
+  #   daily = responses[0].Daily()
+  #   daily_weather_code = daily.Variables(0).ValuesAsNumpy()
+  #   daily_temperature_2m_max = daily.Variables(1).ValuesAsNumpy()
+  #   daily_temperature_2m_min = daily.Variables(2).ValuesAsNumpy()
+  #   daily_sunrise = daily.Variables(3).ValuesInt64AsNumpy()
+  #   daily_sunset = daily.Variables(4).ValuesInt64AsNumpy()
+  #   daily_rain_sum = daily.Variables(5).ValuesAsNumpy()
+  #   daily_uv_index_max = daily.Variables(6).ValuesAsNumpy()
+  #   daily_wind_speed_10m_max = daily.Variables(7).ValuesAsNumpy()
+  #   daily_wind_direction_10m_dominant = daily.Variables(8).ValuesAsNumpy()
+  #   daily_wind_gusts_10m_max = daily.Variables(9).ValuesAsNumpy()
+
+  async def _fetch_hourly(self, *, lon: float, lat: float, timezone: str | None) -> tuple[str, int, int, Forecast]:
+    self.logger.info(f'Fetching forecast for geo ({lon}, {lat})')
 
     current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
     current_time_str = current_time.isoformat()[0:-3]
@@ -54,8 +107,7 @@ class OpenMeteoForecastProvider(Provider):
         'longitude': lon,
         'hourly': 'temperature_2m,relativehumidity_2m,windspeed_10m',
         'daily': 'sunrise,sunset',
-        'current_weather': 'true',
-        'timezone': 'auto',
+        'timezone': timezone or 'auto',
         'start_date': current_date,
         'end_date': current_date,
       },
@@ -68,8 +120,8 @@ class OpenMeteoForecastProvider(Provider):
 
     return daily_index, hourly_index, forecast
 
-  async def fetch(self, *, lon: float, lat: float) -> ForecastResponse:
-    daily_index, hourly_index, forecast = await self._fetch(lon=lon, lat=lat)
+  async def fetch(self, *, lon: float, lat: float, timezone: str | None) -> ForecastResponse:
+    daily_index, hourly_index, forecast = await self._fetch_hourly(lon=lon, lat=lat, timezone=timezone)
 
     sunset_date = datetime.datetime.strptime(forecast.daily.sunset[daily_index], self.format)
     sunrise_date = datetime.datetime.strptime(forecast.daily.sunrise[daily_index], self.format)
@@ -81,7 +133,7 @@ class OpenMeteoForecastProvider(Provider):
     return ForecastResponse(
       temperature=f'{current_temperature}{forecast.hourly_units.temperature_2m}',
       humidity=f'{current_humidity}{forecast.hourly_units.relativehumidity_2m}',
-      wind_direction=forecast.current_weather.winddirection,
+      # wind_direction=forecast.current_weather.winddirection,
       wind_speed=f'{current_windspeed} {forecast.hourly_units.windspeed_10m}',
       sunrise=str(sunrise_date.time()),
       sunset=str(sunset_date.time()),

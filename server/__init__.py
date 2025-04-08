@@ -21,52 +21,81 @@ from fastapi import Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.api import parse_path
+from .core.assistant import Assistant
 from .core.config import ALLOWED_ORIGINS
+from .core.config import CACHE_DIR
+from .core.config import HOST
+from .core.config import LOG_FILE
+from .core.config import OLLAMA_BASEURL
+from .core.config import OLLAMA_MODEL
+from .core.config import PORT
+from .core.config import ROOT_PATH
+from .core.config import USER_AGENT
+from .core.config import WORKERS
+from .core.controller import Controller
 from .core.geo import NotFoundLocationException
+from .core.logger import LOG_LEVEL_STR
 from .core.logger import logger
+from .core.package import APP_NAME
 from .core.package import APP_VERSION
 from .endpoints.docs import create_docs_endpoints
 from .endpoints.forecast import create_forecast_endpoints
+from .endpoints.generative import create_generative_endpoints
 from .endpoints.geocode import create_geocode_endpoints
 from .endpoints.version import create_version_endpoints
+from .providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
+from .providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
+from .providers.RNSAProvider import RNSAProvider
 
 
-SERVICE_TITLE = 'Oremi Forecast API'
+SERVICE_TITLE = 'Oremi Weather Agent Documentation'
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _readme_path = os.path.realpath(
   os.path.join(_current_dir, '..', 'DOCUMENTATION.md'),
 )
 
-with open(_readme_path, 'r', encoding='utf-8') as file:
+with open(_readme_path, encoding='utf-8') as file:
   SERVICE_DESCRIPTION = file.read()
 
 forecast_tag = {
   'name': 'Forecast Endpoints',
   'description': (
-    'Endpoints for retrieving weather forecast data, including temperature, humidity, wind speed, '
-    'wind direction, sunrise, and sunset times. These endpoints provide detailed weather information '
-    'for a specific location based on latitude and longitude, enabling users to plan activities and '
-    'make informed decisions based on current and future weather conditions.'
+    'Endpoints for retrieving detailed weather forecast data. These include '
+    'information such as temperature, humidity, wind speed, wind direction, '
+    'sunrise, and sunset times. The endpoints allow users to obtain weather '
+    'information for specific locations based on latitude and longitude, '
+    'helping them plan activities and make informed decisions.'
+  ),
+}
+
+generative_tag = {
+  'name': 'Generative Endpoints',
+  'description': (
+    'Endpoints that provide generative responses for weather-related queries. '
+    'Users can input natural language questions, and the API will generate '
+    'detailed weather forecasts or related information for the specified or '
+    'inferred location.'
   ),
 }
 
 geocode_tag = {
   'name': 'Geocode Endpoints',
   'description': (
-    'Endpoints for retrieving geographical location data, including address details, coordinates, '
-    'and bounding boxes. These endpoints support both forward geocoding (searching for a location '
-    'by name or address) and reverse geocoding (finding a location by latitude and longitude). '
-    'They are useful for mapping, navigation, and location-based services.'
+    'Endpoints for retrieving geographical data, including address details, '
+    'coordinates, and bounding boxes. These endpoints support forward '
+    'geocoding (searching by name or address) and reverse geocoding (finding '
+    'locations by latitude and longitude). They are essential for mapping, '
+    'navigation, and location-based services.'
   ),
 }
 
 version_tag = {
   'name': 'Server Endpoints',
   'description': (
-    'Endpoints for retrieving server-related information, including the server\'s name and version. '
-    'This allows clients to easily identify the server they are interacting with and its current version, '
-    'ensuring transparency and compatibility in API usage.'
+    "Endpoints for retrieving server-related metadata, such as the server's "
+    'name and version. These endpoints help clients identify the server they '
+    'are interacting with and ensure compatibility with the API.'
   ),
 }
 
@@ -76,8 +105,24 @@ BASE_PATH = parse_path('/api')
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   # execute the app lifespan atr the start of the context manager and at the end
-  logger.info(f'Allowed Origins: {ALLOWED_ORIGINS}')
+  logger.info(f'Starting {APP_NAME}/{APP_VERSION}')
+  logger.info(f'Server Host: {HOST}')
+  logger.info(f'Server Port: {PORT}')
+  logger.info(f'Server Workers: {WORKERS}')
+  logger.info(f'Server Root Path: {ROOT_PATH}')
+  logger.info(f'User Agent: {USER_AGENT}')
+  logger.info(f'Cache Directory: {CACHE_DIR}')
+  logger.info(f'Allowed Origins: {ALLOWED_ORIGINS or "*"}')
+  logger.info(f'Log Level: {LOG_LEVEL_STR}')
+  logger.info(f'Log File Path: {LOG_FILE or None}')
+  logger.info(f'API Base Path: {BASE_PATH}')
+  logger.info(f'Ollama URL: {OLLAMA_BASEURL}')
+  logger.info(f'Ollama Model: {OLLAMA_MODEL}')
+  logger.info(f'User Agent: {USER_AGENT}')
+  logger.info(f'API Root Path: {ROOT_PATH}')
+  await assistant.load_model()
   yield
+
 
 api = FastAPI(
   docs_url=None,
@@ -96,6 +141,7 @@ api = FastAPI(
   },
   openapi_tags=[
     forecast_tag,
+    generative_tag,
     geocode_tag,
     version_tag,
   ],
@@ -109,7 +155,29 @@ api.add_middleware(
   allow_headers=['*'],
 )
 
-create_forecast_endpoints(forecast_tag['name'], api)
+assistant = Assistant(
+  model=OLLAMA_MODEL,
+  logger=logger,
+  ollama_baseurl=OLLAMA_BASEURL,
+)
+
+controller = Controller(
+  logger=logger,
+  assistant=assistant,
+)
+
+forecast = OpenMeteoForecastProvider(controller, logger)
+air_quality = OpenMeteoAirQualityProvider(controller, logger)
+rnsa = RNSAProvider(controller, logger)
+
+create_forecast_endpoints(
+  tag=forecast_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
+)
+
+create_generative_endpoints(
+  tag=generative_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
+)
+
 create_geocode_endpoints(geocode_tag['name'], api)
 create_version_endpoints(version_tag['name'], api)
 create_docs_endpoints(api)
