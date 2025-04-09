@@ -24,11 +24,10 @@ from ..core.geo import Location
 
 class GetServiceTool:
   handle_forecast_request = Tool.Function(
-    name='handle_forecast_request',
-    description='Handle a forecast request.',
+    name='get_weather',
+    description='Handle a forecast request with location information.',
     parameters=Tool.Function.Parameters(
       type='object',
-      required=['location'],
       properties={
         'location': Tool.Function.Parameters.Property(type='string', description='The relevant location to handle'),
       },
@@ -36,27 +35,15 @@ class GetServiceTool:
   )
 
   handle_air_quality_request = Tool.Function(
-    name='handle_air_quality_request',
-    description='Handle a air quality request.',
-    parameters=Tool.Function.Parameters(
-      type='object',
-      required=['location'],
-      properties={
-        'location': Tool.Function.Parameters.Property(type='string', description='The relevant location to handle'),
-      },
-    ),
+    name='get_air_quality',
+    description='Handle a air quality request with location information.',
+    parameters=handle_forecast_request.parameters,
   )
 
   handle_pollen_request = Tool.Function(
-    name='handle_pollen_request',
-    description='Handle a pollen request.',
-    parameters=Tool.Function.Parameters(
-      type='object',
-      required=['location'],
-      properties={
-        'location': Tool.Function.Parameters.Property(type='string', description='The relevant location to handle'),
-      },
-    ),
+    name='get_pollen',
+    description='Handle a pollen request with location information.',
+    parameters=handle_forecast_request.parameters,
   )
 
   handle_unhandled_request = Tool.Function(
@@ -68,13 +55,13 @@ class GetServiceTool:
     self.logger = logger
     self.agent = assistant.create_tools_agent(
       system=(
-        'You are a weather assistant AI specialized in helping users understand local weather, air quality, and pollen forecasts. '
-        'You must respond concisely, accurately, and with practical recommendations when applicable. '
-        'You have access to specialized tools for handling forecast, air quality, and pollen requests. '
-        'Always identify the location involved in the user request. '
-        'If the request is vague, ambiguous, or cannot be handled with the available tools, '
-        'call the "handle_unhandled_request" function. '
-        'Do not invent information. Use tools whenever needed and focus on helping the user make informed decisions based on weather conditions.'
+        "You are a specialized assistant agent designed to identify the requested service—weather, air quality, or pollen—from the user's request. "
+        'When possible, extract the relevant location directly from the request or the surrounding context. '
+        'Respond concisely and accurately, providing practical, actionable recommendations when appropriate. '
+        'Use the dedicated tools available for forecasts, air quality, and pollen data. '
+        'If the service type or location is missing, unclear, or cannot be handled using available tools, '
+        f'call the "{GetServiceTool.handle_unhandled_request.name}" function. '
+        'Do not invent information. Always rely on tools when needed and aim to help users make informed decisions based on environmental conditions.'
       ),
       tools=[
         Tool(
@@ -95,7 +82,7 @@ class GetServiceTool:
   async def get_user_input_service(
     self, user_input: str, *, timezone: str, context: str = ''
   ) -> tuple[Literal['weather', 'air-quality', 'pollen'] | None, Location | None]:
-    result = await self.agent.query(input=f'User Request: {user_input}.\nTimezone: {timezone}.\n{context}')
+    result = await self.agent.query(input=f'User: {user_input}.\nTimezone: {timezone}.\n{context}')
 
     if result:
       self.logger.debug(f'Extracted service from user input: {result}')

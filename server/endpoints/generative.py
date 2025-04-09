@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from types import NoneType
+
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Query
@@ -37,6 +39,7 @@ def create_generative_endpoints(
   example_response = Controller.Response[ForecastData | AirQualityData | PollenData].model_validate(
     {
       'provider': 'Open-Météo',
+      'service': 'weather',
       'input': "Quel temps fait à Paris aujourd'hui ?",
       'message': "Il fait 12 degrés Celsius à Paris aujourd'hui, avec une humideur de 37 pour cent et un vent doux à 4,3 kilomètres par heure. Il commence à se lever à 7h13 et se couche à 20h31. C'est un excellent temps pour sortir et profiter du soleil.",
       'data': {
@@ -122,7 +125,7 @@ def create_generative_endpoints(
       description='An optional context string that can be used for generating responses.',
       examples=['Current time: 12:34 PM'],
     ),
-  ) -> Controller.Response[ForecastData | DailyForecastData | AirQualityData | PollenData]:
+  ) -> Controller.Response[ForecastData | DailyForecastData | AirQualityData | PollenData | NoneType]:
     """
     This endpoint generates responses related to weather, air quality, or pollen
     count for a specific location based on user queries. It identifies the requested
@@ -164,11 +167,8 @@ def create_generative_endpoints(
           provider = rnsa.name
           data = await rnsa.fetch_location(location)
 
-          if not data:
-            data = 'Response: Unable to fetch pollen data for the specified location.'
-
-        if provider and data:
-          return await controller.generate_response(q, provider, location, data, dateinfo)
+        if provider:
+          return await controller.generate_response(q, provider, location, service, data, dateinfo)
 
       raise HTTPException(status_code=400, detail='No location found for user input')
     raise HTTPException(status_code=404, detail='Unable to identify service for user input')

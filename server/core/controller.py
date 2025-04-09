@@ -15,6 +15,7 @@
 import logging
 from datetime import datetime
 from typing import Generic
+from typing import Literal
 from typing import TypeVar
 
 from ollama import Tool
@@ -72,9 +73,19 @@ class Controller:
     )
 
   async def generate_response(
-    self, user_input: str, provider: str, location: Location, data: ResponseData, dateinfo: 'Controller.DateInfo | None'
+    self,
+    user_input: str,
+    provider: str,
+    location: Location,
+    service: str,
+    data: ResponseData | None,
+    dateinfo: 'Controller.DateInfo | None',
   ) -> 'Controller.Response':
-    prompt = f'User Request: {user_input}.\nProvider: {provider}.\n{data}.\n'
+    prompt = (
+      f'User Request: {user_input}.\n'
+      'Provider: {provider}.\n'
+      f'{data or "Response: Unable to fetch data for the specified location"}.\n'
+    )
 
     if dateinfo:
       if dateinfo.start == dateinfo.end:
@@ -86,6 +97,7 @@ class Controller:
 
     return Controller.Response(
       input=user_input,
+      service=service,
       provider=provider,
       message=result.response if result else 'No response',
       location=location,
@@ -120,6 +132,7 @@ class Controller:
   class Response(BaseModel, Generic[ResponseData]):
     provider: str = Field(..., description='Name of the data provider')
     input: str = Field(..., description='User input that triggered the response')
+    service: Literal['air-quality', 'weather', 'pollen'] = Field(..., description='Service used for generating the response')
     message: str = Field(..., description='Message or explanation related to the response')
-    data: ResponseData = Field(..., description='Structured data returned by the provider')
+    data: ResponseData | None = Field(..., description='Structured data returned by the provider')
     location: Location = Field(..., description='Location information related to the response')

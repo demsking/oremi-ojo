@@ -87,6 +87,7 @@ async def main():
   )
 
   await assistant.load_model()
+  del assistant
 
   uvicorn.run(
     app='server:api',
