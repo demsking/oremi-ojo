@@ -38,7 +38,7 @@ pages:
     - poetry install
 
     # Generating openapi.json file
-    - python generate-openapi.py
+    - python srcipts/generate-openapi.py
     - cp -r doc/ public/
     - ls -lah public/
     - echo "The documentation site will be deployed to $CI_PAGES_URL"
