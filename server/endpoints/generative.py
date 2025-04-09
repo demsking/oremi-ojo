@@ -19,6 +19,7 @@ from fastapi import Query
 from ..core.controller import Controller
 from ..providers.OpenMeteoAirQualityProvider import AirQualityData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
+from ..providers.OpenMeteoForecastProvider import DailyForecastData
 from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
 from ..providers.RNSAProvider import PollenData
@@ -75,8 +76,18 @@ def create_generative_endpoints(
           },
         },
       },
-      400: {'description': 'No location found for user input'},
-      404: {'description': 'Unable to identify service for user input'},
+      400: {
+        'description': 'No location found for user input',
+        'content': {
+          'application/json': {'example': {'detail': 'No location found for user input'}},
+        },
+      },
+      404: {
+        'description': 'Unable to identify service for user input',
+        'content': {
+          'application/json': {'example': {'detail': 'Unable to identify service for user input'}},
+        },
+      },
     },
   )
   async def ask(
@@ -111,7 +122,7 @@ def create_generative_endpoints(
       description='An optional context string that can be used for generating responses.',
       examples=['Current time: 12:34 PM'],
     ),
-  ) -> Controller.Response[ForecastData | OpenMeteoForecastProvider.DailyForecastData | AirQualityData | PollenData]:
+  ) -> Controller.Response[ForecastData | DailyForecastData | AirQualityData | PollenData]:
     """
     This endpoint allows users to generate responses based on their queries.
     It determines the requested service, such as weather, air quality, or
@@ -167,5 +178,5 @@ def create_generative_endpoints(
         if provider and data:
           return await controller.generate_response(q, provider, location, data, dateinfo)
 
-      raise HTTPException(status_code=400, detail=f'No location found for user input "{q}".')
-    raise HTTPException(status_code=404, detail=f'Unable to identify service for user input: "{q}".')
+      raise HTTPException(status_code=400, detail='No location found for user input')
+    raise HTTPException(status_code=404, detail='Unable to identify service for user input')

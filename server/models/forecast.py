@@ -73,3 +73,16 @@ class ForecastData(BaseModel):
   wind_speed: str = Field(..., description='Wind speed description')
   sunrise: str = Field(..., description='Sunrise time in ISO 8601 format')
   sunset: str = Field(..., description='Sunset time in ISO 8601 format')
+
+
+class DailyForecastData(BaseModel):
+  weather_code: int = Field(..., description='Weather condition code for the day')
+  temperature_2m_max: float = Field(..., description='Maximum temperature at 2 meters')
+  temperature_2m_min: float = Field(..., description='Minimum temperature at 2 meters')
+  sunrise: int = Field(..., description='Sunrise time as Unix timestamp')
+  sunset: int = Field(..., description='Sunset time as Unix timestamp')
+  rain_sum: float = Field(..., description='Total daily rainfall in millimeters')
+  uv_index_max: float = Field(..., description='Maximum UV index')
+  wind_speed_10m_max: float = Field(..., description='Maximum wind speed at 10 meters')
+  wind_direction_10m_dominant: float = Field(..., description='Dominant wind direction at 10 meters in degrees')
+  wind_gusts_10m_max: float = Field(..., description='Maximum wind gusts at 10 meters')

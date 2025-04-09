@@ -18,14 +18,13 @@ from datetime import timedelta
 
 import openmeteo_requests
 import requests_cache
-from pydantic import BaseModel
-from pydantic import Field
 from retry_requests import retry
 
 from ..core.config import CACHE_DIR
 from ..core.controller import Controller
 from ..core.http import HttpClient
 from ..core.provider import Provider
+from ..models.forecast import DailyForecastData
 from ..models.forecast import Forecast
 from ..models.forecast import ForecastData
 
@@ -92,7 +91,7 @@ class OpenMeteoForecastProvider(Provider):
     daily_wind_direction_10m_dominant = daily.Variables(8).ValuesAsNumpy()
     daily_wind_gusts_10m_max = daily.Variables(9).ValuesAsNumpy()
 
-    return OpenMeteoForecastProvider.DailyForecastData(
+    return DailyForecastData(
       weather_code=daily_weather_code[0].item(),
       temperature_2m_max=daily_temperature_2m_max[0].item(),
       temperature_2m_min=daily_temperature_2m_min[0].item(),
@@ -150,15 +149,3 @@ class OpenMeteoForecastProvider(Provider):
       sunrise=str(sunrise_date.time()),
       sunset=str(sunset_date.time()),
     )
-
-  class DailyForecastData(BaseModel):
-    weather_code: int = Field(..., description='Weather condition code for the day')
-    temperature_2m_max: float = Field(..., description='Maximum temperature at 2 meters')
-    temperature_2m_min: float = Field(..., description='Minimum temperature at 2 meters')
-    sunrise: int = Field(..., description='Sunrise time as Unix timestamp')
-    sunset: int = Field(..., description='Sunset time as Unix timestamp')
-    rain_sum: float = Field(..., description='Total daily rainfall in millimeters')
-    uv_index_max: float = Field(..., description='Maximum UV index')
-    wind_speed_10m_max: float = Field(..., description='Maximum wind speed at 10 meters')
-    wind_direction_10m_dominant: float = Field(..., description='Dominant wind direction at 10 meters in degrees')
-    wind_gusts_10m_max: float = Field(..., description='Maximum wind gusts at 10 meters')
