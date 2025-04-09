@@ -4,8 +4,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "oremi-weather-agent"
-version = "1.0.0-beta0"
-description = "A comprehensive API for weather forecasts, geocoding, and pollen data"
+version = "3.0.0-beta0"
+description = "A comprehensive climate agent for weather forecasts, geocoding, and pollen data"
 keywords = ["forecast", "air quality", "pollen", "geocoding"]
 authors = ["Sébastien Demanou <demsking@gmail.com>"]
 license = "Apache-2.0"
