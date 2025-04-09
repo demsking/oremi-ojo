@@ -8,6 +8,8 @@ server-related information. Built with FastAPI and designed to run in a Docker
 container, Oremi Weather Agent provides developers with easy access to accurate
 weather and geocoding data.
 
+![Oremi Weather Agent Logo](doc/logo.jpg)
+
 ## Documentation
 
 Find the Oremi Weather Agent deployment and API documentation at
