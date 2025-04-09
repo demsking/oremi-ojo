@@ -106,6 +106,11 @@ def create_generative_endpoints(
       description='The timezone identifier for the location for which the response is generated.',
       examples=['Europe/Paris', 'Africa/Douala', 'Africa/Lagos', 'America/New_York', 'Asia/Tokyo'],
     ),
+    context: str | None = Query(
+      default=None,
+      description='An optional context string that can be used for generating responses.',
+      examples=['Current time: 12:34 PM'],
+    ),
   ) -> Controller.Response[ForecastData | OpenMeteoForecastProvider.DailyForecastData | AirQualityData | PollenData]:
     """
     This endpoint allows users to generate responses based on their queries.
@@ -127,10 +132,12 @@ def create_generative_endpoints(
     endpoint will return an error indicating the issue. This ensures that
     users receive clear feedback when their query cannot be processed.
     """
-    service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone)
+    service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone, context=context or '')
 
     if service:
-      location = location or await controller.location_agent.get_user_input_location(q, timezone=timezone)
+      location = location or await controller.location_agent.get_user_input_location(
+        q, timezone=timezone, context=context or ''
+      )
 
       if location:
         provider = None
@@ -138,7 +145,7 @@ def create_generative_endpoints(
         dateinfo = None
 
         if service == 'weather' or service == 'air-quality':
-          dateinfo = await controller.get_date(q, timezone=timezone)
+          dateinfo = await controller.get_date(q, timezone=timezone, context=context or '')
 
           if service == 'weather':
             provider = forecast.name

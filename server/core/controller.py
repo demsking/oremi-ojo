@@ -92,8 +92,8 @@ class Controller:
       data=data,
     )
 
-  async def get_date(self, user_input: str, timezone: str):
-    tool, start, end = await self.date_agent.get_date(user_input, timezone=timezone)
+  async def get_date(self, user_input: str, *, timezone: str, context: str = ''):
+    tool, start, end = await self.date_agent.get_date(user_input, timezone=timezone, context=context)
     start_date = start.date().isoformat()
     end_date = end.date().isoformat()
     period = GetDateTool.period_map[tool.name]

@@ -93,12 +93,9 @@ class GetServiceTool:
     )
 
   async def get_user_input_service(
-    self,
-    user_input: str,
-    *,
-    timezone: str,
+    self, user_input: str, *, timezone: str, context: str = ''
   ) -> tuple[Literal['weather', 'air-quality', 'pollen'] | None, Location | None]:
-    result = await self.agent.query(input=f'User Request: {user_input}.\nTimezone: {timezone}')
+    result = await self.agent.query(input=f'User Request: {user_input}.\nTimezone: {timezone}.\n{context}')
 
     if result:
       self.logger.debug(f'Extracted service from user input: {result}')
