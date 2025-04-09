@@ -19,7 +19,6 @@ from fastapi import FastAPI
 from fastapi import Query
 from pydantic import BaseModel
 
-from ..core.controller import Controller
 from ..providers.OpenMeteoAirQualityProvider import EAQIData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoAirQualityProvider import USAQIData
@@ -40,7 +39,6 @@ class Response(BaseModel, Generic[ResponseData]):
 def create_forecast_endpoints(
   tag: str,
   api: FastAPI,
-  controller: Controller,
   forecast: OpenMeteoForecastProvider,
   air_quality: OpenMeteoAirQualityProvider,
   rnsa=RNSAProvider,

@@ -25,7 +25,7 @@ HOST = getenv('HOST', default='127.0.0.1')
 Host address to listen on.
 """
 
-PORT = getenv('PORT', default=1111, expected_type=int)
+PORT = getenv('PORT', default=1777, expected_type=int)
 """
 Port number to listen on.
 """

@@ -6,7 +6,7 @@
   "workspaceFolder": "/workspaces",
   "shutdownAction": "stopCompose",
   "postCreateCommand": "poetry install",
-  "forwardPorts": [1111],
+  "forwardPorts": [1777],
   "customizations": {
     "vscode": {
       "extensions": [

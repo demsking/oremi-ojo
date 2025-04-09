@@ -17,3 +17,6 @@ from .config import ROOT_PATH
 
 def parse_path(path: str) -> str:
   return ROOT_PATH + path if len(ROOT_PATH) > 1 else path
+
+
+BASE_PATH = parse_path('/api')

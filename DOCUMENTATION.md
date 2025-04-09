@@ -30,9 +30,9 @@ weather and geocoding data.
 The [`demsking/oremi-weather-agent`](https://hub.docker.com/r/demsking/oremi-weather-agent)
 Docker image is officially available on Docker Hub, supporting both
 `linux/amd64` and `linux/arm64` platforms. The image is configured to expose
-port `1111`, which serves the API and documentation endpoints.
+port `1777`, which serves the API and documentation endpoints.
 
-The local documentation can be accessed at `http://localhost:1111/docs` for easy
+The local documentation can be accessed at `http://localhost:1777/docs` for easy
 reference on available endpoints and usage instructions.
 
 ### Deploy with Docker
@@ -41,7 +41,7 @@ Use the official Docker image [`demsking/oremi-weather-agent`](https://hub.docke
 to run Oremi Weather Agent:
 
 ```sh
-docker run -d --env-file <path_to_env_file> -p 1111:1111 demsking/oremi-weather-agent
+docker run -d --env-file <path_to_env_file> -p 1777:1777 demsking/oremi-weather-agent
 ```
 
 Replace `<path_to_env_file>` with the path to your

@@ -20,23 +20,14 @@ from fastapi import Request
 from fastapi import Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core.api import parse_path
+from .core.api import BASE_PATH
 from .core.assistant import Assistant
 from .core.config import ALLOWED_ORIGINS
-from .core.config import CACHE_DIR
-from .core.config import HOST
-from .core.config import LOG_FILE
 from .core.config import OLLAMA_BASEURL
 from .core.config import OLLAMA_MODEL
-from .core.config import PORT
-from .core.config import ROOT_PATH
-from .core.config import USER_AGENT
-from .core.config import WORKERS
 from .core.controller import Controller
 from .core.geo import NotFoundLocationException
-from .core.logger import LOG_LEVEL_STR
 from .core.logger import logger
-from .core.package import APP_NAME
 from .core.package import APP_VERSION
 from .endpoints.agent import create_agent_endpoints
 from .endpoints.docs import create_docs_endpoints
@@ -70,7 +61,7 @@ forecast_tag = {
   ),
 }
 
-agent_tag = {
+agents_tag = {
   'name': 'Agents Endpoints',
   'description': (
     'Endpoints for generating climate information, such as weather, air quality, '
@@ -99,26 +90,10 @@ version_tag = {
   ),
 }
 
-BASE_PATH = parse_path('/api')
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   # execute the app lifespan atr the start of the context manager and at the end
-  logger.info(f'Starting {APP_NAME}/{APP_VERSION}')
-  logger.info(f'Server Host: {HOST}')
-  logger.info(f'Server Port: {PORT}')
-  logger.info(f'Server Workers: {WORKERS}')
-  logger.info(f'Server Root Path: {ROOT_PATH}')
-  logger.info(f'API Root Path: {ROOT_PATH}')
-  logger.info(f'API Base Path: {BASE_PATH}')
-  logger.info(f'User Agent: {USER_AGENT}')
-  logger.info(f'Cache Directory: {CACHE_DIR}')
-  logger.info(f'Allowed Origins: {ALLOWED_ORIGINS or "*"}')
-  logger.info(f'Ollama URL: {OLLAMA_BASEURL}')
-  logger.info(f'Ollama Model: {OLLAMA_MODEL}')
-  logger.info(f'Log Level: {LOG_LEVEL_STR}')
-  logger.info(f'Log File Path: {LOG_FILE or None}')
   await assistant.load_model()
   yield
 
@@ -140,7 +115,7 @@ api = FastAPI(
   },
   openapi_tags=[
     forecast_tag,
-    agent_tag,
+    agents_tag,
     geocode_tag,
     version_tag,
   ],
@@ -169,15 +144,13 @@ forecast = OpenMeteoForecastProvider(controller, logger)
 air_quality = OpenMeteoAirQualityProvider(controller, logger)
 rnsa = RNSAProvider(controller, logger)
 
-create_forecast_endpoints(
-  tag=forecast_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
-)
 
 create_generative_endpoints(
-  tag=agent_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
+  tag=agents_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
 )
 
-create_agent_endpoints(tag=agent_tag['name'], api=api, controller=controller)
+create_forecast_endpoints(tag=forecast_tag['name'], api=api, forecast=forecast, air_quality=air_quality, rnsa=rnsa)
+create_agent_endpoints(tag=agents_tag['name'], api=api, controller=controller)
 create_geocode_endpoints(geocode_tag['name'], api)
 create_version_endpoints(version_tag['name'], api)
 create_docs_endpoints(api)

@@ -28,7 +28,7 @@ ENV PYTHONUNBUFFERED="1"
 ENV PYTHONDONTWRITEBYTECODE="1"
 
 ENV HOST="0.0.0.0"
-ENV PORT=1111
+ENV PORT=1777
 
 ENV CACHE_DIR="/var/cache/oremi-weather-agent"
 
@@ -54,6 +54,6 @@ RUN chmod +x /opt/oremi-weather-agent/bin/* \
 COPY pyproject.toml LICENSE DOCUMENTATION.md /opt/oremi-weather-agent/
 COPY server/ /opt/oremi-weather-agent/server
 
-EXPOSE 1111
+EXPOSE 1777
 
 CMD ["oremi-weather-agent"]
