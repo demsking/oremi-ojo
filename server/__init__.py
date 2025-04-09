@@ -94,7 +94,6 @@ version_tag = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   # execute the app lifespan atr the start of the context manager and at the end
-  await assistant.load_model()
   yield
 
 
