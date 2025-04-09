@@ -57,7 +57,7 @@ services:
     depends_on:
       - ollama
     volumes:
-      - ~/.config/oremi-weather-agent:/var/config/oremi-weather-agent
+      - ~/.config/oremi-weather-agent:/var/cache/oremi-weather-agent
     environment:
       OLLAMA_BASEURL: http://ollama:11434
 

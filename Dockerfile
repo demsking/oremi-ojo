@@ -30,7 +30,7 @@ ENV PYTHONDONTWRITEBYTECODE="1"
 ENV HOST="0.0.0.0"
 ENV PORT=1111
 
-ENV CACHE_DIR="/var/config/oremi-weather-agent"
+ENV CACHE_DIR="/var/cache/oremi-weather-agent"
 
 ENV OLLAMA_MODEL="demsking/oremi:latest"
 ENV OLLAMA_BASEURL=
@@ -48,7 +48,7 @@ COPY --from=build-env /usr/local/bin/ /usr/local/bin/
 # Binaries
 COPY bin/* /opt/oremi-weather-agent/bin/
 RUN chmod +x /opt/oremi-weather-agent/bin/* \
-  && mkdir -p /var/config/oremi-weather-agent
+  && mkdir -p /var/cache/oremi-weather-agent
 
 # Copy application files
 COPY pyproject.toml LICENSE DOCUMENTATION.md /opt/oremi-weather-agent/
