@@ -18,7 +18,6 @@ import os
 
 import uvicorn.config
 
-from server import api
 from server.core.config import HOST
 from server.core.config import PORT
 from server.core.config import WORKERS
@@ -38,7 +37,7 @@ def main():
   log_config = get_log_config() if not verbose else uvicorn.config.LOGGING_CONFIG
 
   uvicorn.run(
-    app=api,
+    app='server:api',
     host=HOST,
     port=PORT,
     workers=WORKERS,
