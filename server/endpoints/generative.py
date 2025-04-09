@@ -32,7 +32,7 @@ def create_generative_endpoints(
   controller: Controller,
   forecast: OpenMeteoForecastProvider,
   air_quality: OpenMeteoAirQualityProvider,
-  rnsa=RNSAProvider,
+  rnsa: RNSAProvider,
 ) -> None:
   example_response = Controller.Response[ForecastData | AirQualityData | PollenData].model_validate(
     {
@@ -66,7 +66,7 @@ def create_generative_endpoints(
   )
 
   @api.get(
-    '/generate',
+    '/agent/climate',
     tags=[tag],
     responses={
       200: {
@@ -90,7 +90,7 @@ def create_generative_endpoints(
       },
     },
   )
-  async def ask(
+  async def generate_weather_info(
     q: str = Query(
       description='The user question to generate a response from.',
       examples=[
@@ -124,31 +124,23 @@ def create_generative_endpoints(
     ),
   ) -> Controller.Response[ForecastData | DailyForecastData | AirQualityData | PollenData]:
     """
-    This endpoint allows users to generate responses based on their queries.
-    It determines the requested service, such as weather, air quality, or
-    pollen count, and retrieves the relevant data for a specified or inferred
-    location.
+    This endpoint generates responses related to weather, air quality, or pollen
+    count for a specific location based on user queries. It identifies the requested
+    service and location from the query and retrieves relevant data using appropriate
+    providers.
 
-    Users can input a question describing the information they need, such as
-    the weather or air quality for a specific location. The system will
-    analyze the query to identify the requested service and location. If the
-    location is not explicitly provided, the system will attempt to infer it
-    from the query.
+    The query should describe the required information, such as weather forecasts,
+    air quality, or pollen data, and may include a specific location. If the location
+    is not explicitly provided, the system will attempt to infer it from the query.
 
-    The endpoint supports multiple services, including weather forecasts, air
-    quality data, and pollen count information. Depending on the identified
-    service, the appropriate provider will be used to fetch the data.
-
-    If the service or location cannot be determined from the user input, the
-    endpoint will return an error indicating the issue. This ensures that
-    users receive clear feedback when their query cannot be processed.
+    The response includes the requested data, such as temperature, humidity, wind
+    speed, sunrise and sunset times, or air quality and pollen levels. If the service
+    or location cannot be determined, the endpoint returns an error.
     """
     service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone, context=context or '')
 
     if service:
-      location = location or await controller.location_agent.get_user_input_location(
-        q, timezone=timezone, context=context or ''
-      )
+      location = location or await controller.location_agent.get_user_input_location(q, context=context or '')
 
       if location:
         provider = None

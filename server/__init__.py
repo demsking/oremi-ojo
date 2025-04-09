@@ -38,6 +38,7 @@ from .core.logger import LOG_LEVEL_STR
 from .core.logger import logger
 from .core.package import APP_NAME
 from .core.package import APP_VERSION
+from .endpoints.agent import create_agent_endpoints
 from .endpoints.docs import create_docs_endpoints
 from .endpoints.forecast import create_forecast_endpoints
 from .endpoints.generative import create_generative_endpoints
@@ -69,13 +70,12 @@ forecast_tag = {
   ),
 }
 
-generative_tag = {
-  'name': 'Generative Endpoints',
+agent_tag = {
+  'name': 'Agents Endpoints',
   'description': (
-    'Endpoints that provide generative responses for weather-related queries. '
-    'Users can input natural language questions, and the API will generate '
-    'detailed weather forecasts or related information for the specified or '
-    'inferred location.'
+    'Endpoints for generating climate information, such as weather, air quality, '
+    'and pollen data, based on user input. These endpoints process queries to '
+    'provide relevant and accurate responses.'
   ),
 }
 
@@ -140,7 +140,7 @@ api = FastAPI(
   },
   openapi_tags=[
     forecast_tag,
-    generative_tag,
+    agent_tag,
     geocode_tag,
     version_tag,
   ],
@@ -174,9 +174,10 @@ create_forecast_endpoints(
 )
 
 create_generative_endpoints(
-  tag=generative_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
+  tag=agent_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
 )
 
+create_agent_endpoints(tag=agent_tag['name'], api=api, controller=controller)
 create_geocode_endpoints(geocode_tag['name'], api)
 create_version_endpoints(version_tag['name'], api)
 create_docs_endpoints(api)
