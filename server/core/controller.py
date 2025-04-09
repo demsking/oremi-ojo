@@ -13,14 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 import logging
+from datetime import datetime
 from typing import Generic
 from typing import TypeVar
 
+from ollama import Tool
 from pydantic import BaseModel
+from pydantic import Field
 
 from ..core.assistant import Assistant
 from ..core.geo import Location
 from ..tools.date_tool import GetDateTool
+from ..tools.date_tool import Period
 from ..tools.location_tool import GetLocationTool
 from ..tools.service_tool import GetServiceTool
 
@@ -35,8 +39,7 @@ class Controller:
   ):
     self.logger = logger
     self.assistant = assistant
-
-    self.agent = assistant.create_agent(
+    self.response_agent = assistant.create_agent(
       system=(
         "You are a smart weather assistant. Respond to the user's weather request in a natural, clear, and human-like way, "
         "using the same language as the user's request. Use the forecast data provided in the context to generate your response.\n"
@@ -49,7 +52,6 @@ class Controller:
         '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
         '- Feel like a helpful assistant speaking to a human\n'
         '- Always use short, simple sentences\n'
-        'If the user asks for weather information about a future or past day, inform them that you can only provide information for the current day.\n'
         'Your responses will be used by a text-to-speech (TTS) service. Make sure they are easy to pronounce and suitable for basic TTS engines.\n'
       )
     )
@@ -70,19 +72,54 @@ class Controller:
     )
 
   async def generate_response(
-    self, user_input: str, provider: str, location: Location, data: ResponseData
+    self, user_input: str, provider: str, location: Location, data: ResponseData, dateinfo: 'Controller.DateInfo | None'
   ) -> 'Controller.Response':
-    result = await self.agent.generate(prompt=(f'User Request: {user_input}.\nProvider: {provider}.\n{data}.\n'))
+    prompt = f'User Request: {user_input}.\nProvider: {provider}.\n{data}.\n'
+
+    if dateinfo:
+      if dateinfo.start == dateinfo.end:
+        prompt += f'Date: {dateinfo.start_date}.'
+      else:
+        prompt += f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
+
+    result = await self.response_agent.generate(prompt)
 
     return Controller.Response(
+      input=user_input,
       provider=provider,
       message=result.response if result else 'No response',
       location=location,
       data=data,
     )
 
+  async def get_date(self, user_input: str, timezone: str):
+    tool, start, end = await self.date_agent.get_date(user_input, timezone=timezone)
+    start_date = start.date().isoformat()
+    end_date = end.date().isoformat()
+    period = GetDateTool.period_map[tool.name]
+
+    return Controller.DateInfo(
+      tool=tool,
+      period=period,
+      start=start,
+      start_date=start_date,
+      end=end,
+      end_date=end_date,
+      timezone=timezone,
+    )
+
+  class DateInfo(BaseModel):
+    tool: Tool.Function
+    period: Period
+    start: datetime
+    start_date: str
+    end: datetime
+    end_date: str
+    timezone: str
+
   class Response(BaseModel, Generic[ResponseData]):
-    provider: str
-    message: str
-    data: ResponseData
-    location: Location
+    provider: str = Field(..., description='Name of the data provider')
+    input: str = Field(..., description='User input that triggered the response')
+    message: str = Field(..., description='Message or explanation related to the response')
+    data: ResponseData = Field(..., description='Structured data returned by the provider')
+    location: Location = Field(..., description='Location information related to the response')

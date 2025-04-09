@@ -20,11 +20,12 @@ from fastapi import Query
 from pydantic import BaseModel
 
 from ..core.controller import Controller
-from ..providers.OpenMeteoAirQualityProvider import AirQualityResponse
+from ..providers.OpenMeteoAirQualityProvider import EAQIData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
-from ..providers.OpenMeteoForecastProvider import ForecastResponse
+from ..providers.OpenMeteoAirQualityProvider import USAQIData
+from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from ..providers.RNSAProvider import PollenResponse
+from ..providers.RNSAProvider import PollenData
 from ..providers.RNSAProvider import RNSAProvider
 
 
@@ -59,7 +60,7 @@ def create_forecast_endpoints(
       description='The timezone identifier for the location for which the weather forecast is requested.',
       examples=['Africa/Douala', 'Europe/Paris'],
     ),
-  ) -> Response[ForecastResponse]:
+  ) -> Response[ForecastData]:
     """
     Retrieve the weather forecast for a specific location.
 
@@ -83,12 +84,7 @@ def create_forecast_endpoints(
       description='The longitude of the location for which the air quality data is requested.',
       examples=[2.3483915],
     ),
-    timezone: str = Query(
-      default='auto',
-      description='The timezone identifier for the location for which the air quality data is requested.',
-      examples=['Africa/Douala', 'Europe/Paris'],
-    ),
-  ) -> Response[AirQualityResponse]:
+  ) -> Response[EAQIData | USAQIData]:
     """
     Retrieve the air quality data for a specific location.
 
@@ -99,7 +95,7 @@ def create_forecast_endpoints(
     """
     return Response(
       provider=air_quality.name,
-      data=await air_quality.fetch(lat=lat, lon=lon, timezone=timezone),
+      data=await air_quality.fetch(lat=lat, lon=lon),
     )
 
   @api.get('/pollen', tags=[tag])
@@ -112,7 +108,7 @@ def create_forecast_endpoints(
       description='The longitude of the location for which the pollen data is requested.',
       examples=[2.3483915],
     ),
-  ) -> Response[PollenResponse]:
+  ) -> Response[PollenData]:
     """
     Retrieve the pollen data for a specific location.
 

@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "oremi-weather-agent"
-version = "2.0.1"
+version = "1.0.0-beta0"
 description = "A comprehensive API for weather forecasts, geocoding, and pollen data"
 keywords = ["forecast", "air quality", "pollen", "geocoding"]
 authors = ["Sébastien Demanou <demsking@gmail.com>"]
@@ -32,6 +32,7 @@ pytz = "^2025.2"
 openmeteo-requests = "^1.4.0"
 requests-cache = "^1.2.1"
 retry-requests = "^2.0.0"
+numpy = "^2.2.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"

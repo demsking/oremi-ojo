@@ -15,21 +15,22 @@
 from typing import Literal
 
 from pydantic import BaseModel
+from pydantic import Field
 
 
 class Risk(BaseModel):
-  pollenName: str
-  level: int
+  pollenName: str = Field(..., description='Name of the pollen type')
+  level: int = Field(..., description='Risk level associated with the pollen (e.g., 0-5)')
 
 
 class RNSAResponse(BaseModel):
-  countyName: str
-  countyNumber: int
-  risks: list[Risk]
-  riskLevel: int
+  countyName: str = Field(..., description='Name of the county')
+  countyNumber: int = Field(..., description='Identification number of the county')
+  risks: list[Risk] = Field(..., description='List of risks for various pollen types')
+  riskLevel: int = Field(..., description='Overall risk level for the county')
 
 
-class PollenResponse(BaseModel):
-  pollen_names: str
-  level: int
-  risk: Literal['unknown', 'low', 'medium', 'high']
+class PollenData(BaseModel):
+  pollen_names: list[str] | None = Field(..., description='List of pollen types detected')
+  level: int = Field(..., description='Aggregated pollen level')
+  risk: Literal['unknown', 'low', 'medium', 'high'] = Field(..., description='Categorized risk level based on pollen level')

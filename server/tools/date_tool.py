@@ -14,6 +14,8 @@
 # ==============================================================================
 import datetime
 import logging
+from typing import ClassVar
+from typing import Literal
 
 import dateutil.parser
 from ollama import Tool
@@ -81,7 +83,24 @@ weather_tools = [
 ]
 
 
+Period = Literal['hourly', 'daily', 'weekly']
+
+
 class GetDateTool:
+  period_map: ClassVar[dict[str, Period]] = {
+    weather_tool_exec_current.name: 'hourly',
+    weather_tool_exec_today.name: 'daily',
+    weather_tool_exec_morning.name: 'hourly',
+    weather_tool_exec_afternoon.name: 'hourly',
+    weather_tool_exec_night.name: 'hourly',
+    weather_tool_exec_tomorrow.name: 'daily',
+    weather_tool_exec_this_week.name: 'weekly',
+    weather_tool_exec_weekend.name: 'weekly',
+    weather_tool_exec_next_week.name: 'weekly',
+    weather_tool_exec_specific_date.name: 'daily',
+    weather_tool_exec_unknown_date.name: 'daily',
+  }
+
   def __init__(self, assistant: Assistant, logger: logging.Logger):
     self.logger = logger
     self.agent = assistant.create_tools_agent(
@@ -95,9 +114,7 @@ class GetDateTool:
       tools=[Tool(function=item) for item in weather_tools],
     )
 
-  async def get_contextual_date(
-    self, user_input: str, *, timezone: str
-  ) -> tuple[Tool.Function, datetime.datetime, datetime.datetime]:
+  async def get_date(self, user_input: str, *, timezone: str) -> tuple[Tool.Function, datetime.datetime, datetime.datetime]:
     current_time = get_current_datetime(timezone)
     current_time_zero = get_current_datetime(timezone).replace(minute=0, second=0, microsecond=0)
     result = await self.agent.query(input=(f'User Request: {user_input}.\nCurrent date and time: {current_time}'))

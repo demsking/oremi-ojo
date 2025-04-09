@@ -36,10 +36,9 @@ Base URL of the Ollama API.
 Required for communication with Ollama services.
 """
 
-OLLAMA_MODEL = getenv('OLLAMA_MODEL', default='demsking/oremi:latest')
+OLLAMA_MODEL = getenv('OLLAMA_MODEL', default='llama3.2')
 """
-Name of the model for NLP processing.
-Default: demsking/oremi:latest.
+Model name to use for Ollama services. It must support Tools.
 """
 
 USER_AGENT = getenv('USER_AGENT', default=f'{APP_NAME}/{APP_VERSION}')
@@ -57,7 +56,7 @@ ALLOWED_ORIGINS = getenv('CORS_ALLOWED_ORIGINS', expected_type=list, default=[])
 helps control which external domains can interact with the API."""
 
 ROOT_PATH = getenv('ROOT_PATH', default='/')
-"""The root path for the API, which defines the base URL path for all routes. Default is '/'."""
+"""The root path for the API, which defines the base URL path for all routes."""
 
 LOG_FILE = getenv('LOG_FILE', default='')
 """Path to the log file where application logs will be stored. If left empty, logs may be directed

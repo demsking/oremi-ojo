@@ -15,41 +15,43 @@
 from typing import Literal
 
 from pydantic import BaseModel
+from pydantic import Field
 
 
 class Hourly(BaseModel):
-  time: list[str]
-  european_aqi: list[int]
-  us_aqi: list[int]
+  time: list[str] = Field(..., description='List of ISO 8601 timestamps')
+  european_aqi: list[int] = Field(..., description='List of European AQI values')
+  us_aqi: list[int] = Field(..., description='List of US AQI values')
 
 
 class HourlyUnits(BaseModel):
-  time: str
-  european_aqi: str
-  us_aqi: str
+  time: str = Field(..., description='Unit for time values, typically "iso8601"')
+  european_aqi: str = Field(..., description='Unit for European AQI, typically "EAQI"')
+  us_aqi: str = Field(..., description='Unit for US AQI, typically "USAQI"')
 
 
 class AirQualityData(BaseModel):
-  latitude: float
-  longitude: float
-  generationtime_ms: float
-  utc_offset_seconds: int
-  timezone: str
-  timezone_abbreviation: str
-  hourly_units: HourlyUnits
-  hourly: Hourly
+  latitude: float = Field(..., description='Latitude of the location')
+  longitude: float = Field(..., description='Longitude of the location')
+  generationtime_ms: float = Field(..., description='Time taken to generate the response in milliseconds')
+  utc_offset_seconds: int = Field(..., description='Offset from UTC in seconds')
+  timezone: str = Field(..., description='Timezone name')
+  timezone_abbreviation: str = Field(..., description='Abbreviation of the timezone')
+  hourly_units: HourlyUnits = Field(..., description='Units of the hourly data')
+  hourly: Hourly = Field(..., description='Hourly air quality data')
 
 
-class EAQIResponse(BaseModel):
-  value: int
-  level: Literal['good', 'fair', 'moderate', 'poor', 'very poor', 'extremely poor', 'unknown']
-  unit: Literal['EAQI'] = 'EAQI'
+class EAQIData(BaseModel):
+  value: int = Field(..., description='European AQI value')
+  level: Literal['good', 'fair', 'moderate', 'poor', 'very poor', 'extremely poor', 'unknown'] = Field(
+    ..., description='European AQI level category'
+  )
+  unit: Literal['EAQI'] = Field('EAQI', description='Unit identifier for EAQI')
 
 
-class USAQIResponse(BaseModel):
-  value: int
-  level: Literal['good', 'moderate', 'unhealthy for sensitive groups', 'unhealthy', 'very unhealthy', 'hazardous', 'unknown']
-  unit: Literal['USAQI'] = 'USAQI'
-
-
-AirQualityResponse = EAQIResponse | USAQIResponse
+class USAQIData(BaseModel):
+  value: int = Field(..., description='US AQI value')
+  level: Literal[
+    'good', 'moderate', 'unhealthy for sensitive groups', 'unhealthy', 'very unhealthy', 'hazardous', 'unknown'
+  ] = Field(..., description='US AQI level category')
+  unit: Literal['USAQI'] = Field('USAQI', description='Unit identifier for USAQI')

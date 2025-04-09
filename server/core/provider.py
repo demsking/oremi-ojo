@@ -15,7 +15,6 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
-from typing import Any
 
 from .controller import Controller
 from .geo import Location
@@ -30,21 +29,3 @@ class Provider(ABC):
   @abstractmethod
   def fetch(self, *, location: Location):
     raise NotImplementedError
-
-  class Response:
-    def __init__(self, label: str, provider: 'Provider', data: dict[str, Any] | None) -> None:
-      self.label = label
-      self.provider = provider
-      self.data = data or {'API Result': 'No data'}
-
-    def format(self) -> dict[str, dict]:
-      return {
-        f'{self.label} data from {self.provider.name}': self.data,
-      }
-
-    def __str__(self):
-      return '\n'.join(
-        [f'Provider: {self.provider.name}.']
-        + [f'Data type: {self.label}.']
-        + [f'{key}: {value}.' for key, value in self.data.items()]
-      )

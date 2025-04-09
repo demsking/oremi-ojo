@@ -58,7 +58,6 @@ services:
       - ollama
     volumes:
       - ~/.config/oremi-weather-agent:/var/config/oremi-weather-agent
-      - ~/.cache/oremi-weather-agent:/var/cache/oremi-weather-agent
     environment:
       OLLAMA_BASEURL: http://ollama:11434
 
@@ -100,7 +99,7 @@ These variables control HTTP request behavior and caching settings.
 ### Ollama Configuration
 
 - **OLLAMA_BASEURL**: Base URL of the Ollama API. Required for communication with Ollama services.
-- **OLLAMA_MODEL**: Name of the model for NLP processing. Default is `"demsking/oremi:latest"`.
+- **OLLAMA_MODEL**: Model name to use for Ollama services. It must support Tools. Default is `"llama3.2"`.
 
 ### CORS Configuration
 

@@ -55,7 +55,7 @@ def create_geocode_endpoints(tag: str, api: FastAPI) -> None:
       200: {
         'content': {
           'application/json': {
-            'example': example_location,
+            'example': [example_location],
           },
         },
       },
@@ -82,7 +82,7 @@ def create_geocode_endpoints(tag: str, api: FastAPI) -> None:
       examples=['cm'],
       default=None,
     ),
-  ) -> Location:
+  ) -> list[Location]:
     """
     Look up a location for a query string using [Nominatim Search API](https://nominatim.org/release-docs/develop/api/Search/).
 

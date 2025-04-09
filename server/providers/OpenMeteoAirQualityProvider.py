@@ -20,9 +20,8 @@ from ..core.controller import Controller
 from ..core.http import HttpClient
 from ..core.provider import Provider
 from ..models.air_quality import AirQualityData
-from ..models.air_quality import AirQualityResponse
-from ..models.air_quality import EAQIResponse
-from ..models.air_quality import USAQIResponse
+from ..models.air_quality import EAQIData
+from ..models.air_quality import USAQIData
 
 USA_LATITUDE_RANGE = (28.0, 72.0)
 USA_LONGITUDE_RANGE = (-172.0, -34.0)
@@ -69,7 +68,7 @@ class OpenMeteoAirQualityProvider(Provider):
         return level
     return 'unknown'
 
-  async def fetch(self, *, lon: float, lat: float) -> AirQualityResponse:
+  async def fetch(self, *, lon: float, lat: float) -> AirQualityData:
     self.logger.info(f'Fetching air quality data for geo ({lon}, {lat})')
 
     current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
@@ -92,13 +91,13 @@ class OpenMeteoAirQualityProvider(Provider):
       raw = data.hourly.us_aqi
       unit = data.hourly_units.us_aqi
       levels = USAGI_LEVELS
-      response_class = USAQIResponse
+      response_class = USAQIData
     else:
       # use European data for other locations
       raw = data.hourly.european_aqi
       unit = data.hourly_units.european_aqi
       levels = EAGI_LEVELS
-      response_class = EAQIResponse
+      response_class = EAQIData
 
     index = data.hourly.time.index(current_time_str)
     air_quality = raw[index]

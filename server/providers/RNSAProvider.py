@@ -18,9 +18,10 @@ from typing import ClassVar
 
 from ..core.controller import Controller
 from ..core.geo import Geocode
+from ..core.geo import Location
 from ..core.http import HttpClient
 from ..core.provider import Provider
-from ..models.rnsa import PollenResponse
+from ..models.rnsa import PollenData
 from ..models.rnsa import RNSAResponse
 
 
@@ -44,12 +45,16 @@ class RNSAProvider(Provider):
 
   def __init__(self, controller: Controller, logger: logging.Logger) -> None:
     super().__init__('Réseau National de Surveillance Aérobiologique', controller, logger)
+
     self.client = HttpClient(base_url='https://pollens.fr', expire_after=timedelta(minutes=60))
 
-  async def fetch(self, *, lon: float, lat: float) -> PollenResponse:
+  async def fetch(self, *, lon: float, lat: float) -> PollenData | None:
     location = await Geocode.reverse(lat=lat, lon=lon)
 
-    if location and location.address.country_code == 'fr' and location.address.postcode:
+    return await self.fetch_location(location) if location else None
+
+  async def fetch_location(self, location: Location) -> PollenData | None:
+    if location.address.country_code == 'fr' and location.address.postcode:
       code = f'{location.address.postcode}'[0:2]
       self.logger.info(f'Fetching pollens data for French department {code}')
       response = await self.client.get(f'/risks/thea/counties/{code}')
@@ -58,10 +63,10 @@ class RNSAProvider(Provider):
       pollen_names = [pollen.pollenName for pollen in data.risks if data.riskLevel and pollen.level == data.riskLevel]
       risk = RNSAProvider.LEVEL[data.riskLevel]
 
-      return PollenResponse(
+      return PollenData(
         level=data.riskLevel,
         risk=risk,
-        pollen_names=', '.join(pollen_names),
+        pollen_names=pollen_names or None,
       )
 
-    return PollenResponse(level=0, risk='unknown', pollen_names='')
+    return None

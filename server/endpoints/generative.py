@@ -17,11 +17,11 @@ from fastapi import HTTPException
 from fastapi import Query
 
 from ..core.controller import Controller
-from ..providers.OpenMeteoAirQualityProvider import AirQualityResponse
+from ..providers.OpenMeteoAirQualityProvider import AirQualityData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
-from ..providers.OpenMeteoForecastProvider import ForecastResponse
+from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from ..providers.RNSAProvider import PollenResponse
+from ..providers.RNSAProvider import PollenData
 from ..providers.RNSAProvider import RNSAProvider
 
 
@@ -33,9 +33,10 @@ def create_generative_endpoints(
   air_quality: OpenMeteoAirQualityProvider,
   rnsa=RNSAProvider,
 ) -> None:
-  example_response = Controller.Response[ForecastResponse | AirQualityResponse | PollenResponse].model_validate(
+  example_response = Controller.Response[ForecastData | AirQualityData | PollenData].model_validate(
     {
       'provider': 'Open-Météo',
+      'input': "Quel temps fait à Paris aujourd'hui ?",
       'message': "Il fait 12 degrés Celsius à Paris aujourd'hui, avec une humideur de 37 pour cent et un vent doux à 4,3 kilomètres par heure. Il commence à se lever à 7h13 et se couche à 20h31. C'est un excellent temps pour sortir et profiter du soleil.",
       'data': {
         'temperature': '12.3°C',
@@ -74,6 +75,8 @@ def create_generative_endpoints(
           },
         },
       },
+      400: {'description': 'No location found for user input'},
+      404: {'description': 'Unable to identify service for user input'},
     },
   )
   async def ask(
@@ -98,12 +101,12 @@ def create_generative_endpoints(
         'Va-t-il pleuvoir à Paris demain ?',
       ],
     ),
-    timezone: str | None = Query(
-      default=None,
+    timezone: str = Query(
+      default='UTC',
       description='The timezone identifier for the location for which the response is generated.',
       examples=['Europe/Paris', 'Africa/Douala', 'Africa/Lagos', 'America/New_York', 'Asia/Tokyo'],
     ),
-  ) -> Controller.Response[ForecastResponse | AirQualityResponse | PollenResponse]:
+  ) -> Controller.Response[ForecastData | OpenMeteoForecastProvider.DailyForecastData | AirQualityData | PollenData]:
     """
     This endpoint allows users to generate responses based on their queries.
     It determines the requested service, such as weather, air quality, or
@@ -132,19 +135,30 @@ def create_generative_endpoints(
       if location:
         provider = None
         data = None
+        dateinfo = None
 
-        if service == 'weather':
-          provider = forecast.name
-          data = await forecast.fetch(lat=location.lat, lon=location.lon, timezone=timezone)
-        elif service == 'air-quality':
-          provider = air_quality.name
-          data = await air_quality.fetch(lat=location.lat, lon=location.lon)
+        if service == 'weather' or service == 'air-quality':
+          dateinfo = await controller.get_date(q, timezone=timezone)
+
+          if service == 'weather':
+            provider = forecast.name
+
+            if dateinfo.period == 'hourly':
+              data = await forecast.fetch(lat=location.lat, lon=location.lon, timezone=timezone)
+            else:
+              data = await forecast.fetch_daily(lat=location.lat, lon=location.lon, dateinfo=dateinfo)
+          elif service == 'air-quality':
+            provider = air_quality.name
+            data = await air_quality.fetch(lat=location.lat, lon=location.lon)
         elif service == 'pollen':
           provider = rnsa.name
-          data = await rnsa.fetch(lat=location.lat, lon=location.lon)
+          data = await rnsa.fetch_location(location)
+
+          if not data:
+            data = 'Response: Unable to fetch pollen data for the specified location.'
 
         if provider and data:
-          return await controller.generate_response(q, provider, location, data)
+          return await controller.generate_response(q, provider, location, data, dateinfo)
 
       raise HTTPException(status_code=400, detail=f'No location found for user input "{q}".')
-    raise HTTPException(status_code=400, detail=f'Unable to identify service for user input: "{q}".')
+    raise HTTPException(status_code=404, detail=f'Unable to identify service for user input: "{q}".')

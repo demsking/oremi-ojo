@@ -16,6 +16,7 @@ from datetime import timedelta
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
 
 from .http import HttpClient
 # Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
@@ -37,27 +38,27 @@ from .http import HttpClient
 class LocationAddress(BaseModel):
   model_config = ConfigDict(extra='ignore')
 
-  country: str
-  country_code: str
-  region: str = None
-  postcode: int | str = None
-  road: str = None
-  town: str = None
-  municipality: str = None
-  county: str = None
-  state: str = None
-  city: str = None
+  country: str = Field(..., description='Full country name')
+  country_code: str = Field(..., description='ISO country code')
+  region: str | None = Field(None, description='Administrative region or province')
+  postcode: int | str | None = Field(None, description='Postal code of the location')
+  road: str | None = Field(None, description='Street or road name')
+  town: str | None = Field(None, description='Town name, if applicable')
+  municipality: str | None = Field(None, description='Municipality or local administrative division')
+  county: str | None = Field(None, description='County or department')
+  state: str | None = Field(None, description='State or large administrative region')
+  city: str | None = Field(None, description='City name')
 
 
 class Location(BaseModel):
-  type: str
-  name: str
-  boundingbox: list[float]
-  lat: float
-  lon: float
-  addresstype: str
-  display_name: str
-  address: LocationAddress
+  type: str = Field(..., description='Type of the geographical object (e.g., "city", "village")')
+  name: str = Field(..., description='Common name of the location')
+  boundingbox: list[float] = Field(..., description='Bounding box of the location as [south, north, west, east]')
+  lat: float = Field(..., description='Latitude coordinate')
+  lon: float = Field(..., description='Longitude coordinate')
+  addresstype: str = Field(..., description='Type of the address (e.g., "administrative", "residential")')
+  display_name: str = Field(..., description='Human-readable full name of the location')
+  address: LocationAddress = Field(..., description='Structured address information')
 
   def __str__(self) -> str:
     return self.display_name
