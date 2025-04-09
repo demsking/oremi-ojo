@@ -33,6 +33,7 @@ openmeteo-requests = "^1.4.0"
 requests-cache = "^1.2.1"
 retry-requests = "^2.0.0"
 numpy = "^2.2.4"
+uvicorn = {extras = ["standard"], version = "^0.34.0"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
@@ -41,6 +42,7 @@ trio = "^0.29.0"
 pytest-asyncio = "^0.23.7"
 pylint = "^3.2.4"
 python-slugify = "^8.0.4"
+python-dotenv = "^1.1.0"
 
 [tool.skjold]
 sources = ["pyup", "gemnasium", "osv", "pypa"]

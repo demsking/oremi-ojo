@@ -10,7 +10,7 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 # Install dependencies
 RUN apk update \
-  && apk add --no-cache curl git make
+  && apk add --no-cache curl git make vim
 
 # Install Poetry for the root user (temporarily)
 RUN curl -sSL https://install.python-poetry.org | python -
@@ -23,5 +23,6 @@ RUN adduser -D -h /home/devuser -s /bin/sh devuser \
 USER devuser
 WORKDIR /workspaces
 ENV POETRY_VIRTUALENVS_IN_PROJECT=false
+ENV EDITOR=vim
 
 CMD ["sh"]

@@ -15,8 +15,6 @@ coverage
 *.local
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
 .idea
 *.suo
 *.ntvs*
@@ -28,6 +26,7 @@ coverage
 *.kate-swp
 *.log
 .directory
+.coverage
 .devbox/
 .direnv/
 .ropeproject/
@@ -35,4 +34,3 @@ coverage
 build/
 data/
 __pycache__
-openapi.json

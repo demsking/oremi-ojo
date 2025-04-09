@@ -18,10 +18,13 @@ import logging
 from pathlib import Path
 from urllib.parse import urlencode
 
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from slugify import slugify
 
-from server import api
+# Load environment variables from .env file
+load_dotenv('.devcontainer/.env')
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,6 +39,8 @@ def starts_with_number(string: str) -> bool:
 
 # Function to load OpenAPI spec from a URL
 def load_openapi_spec():
+  from server import api
+
   logging.info('Loading OpenAPI spec')
   client = TestClient(
     api,
@@ -118,7 +123,7 @@ client = TestClient(api, backend='asyncio')
 
   if method in ['patch', 'post', 'put']:
     content += f"""
-def test_{operation_id}({', '.join(fixture_names)}):
+async def test_{operation_id}({', '.join(fixture_names)}):
   \"\"\"{summary}\"\"\"
   path = {path_value_prefix}'{path_value}'
   payload = {fixture_names[0] if fixture_names else '{}'}
@@ -128,7 +133,7 @@ def test_{operation_id}({', '.join(fixture_names)}):
 """
   else:
     content += f"""
-def test_{operation_id}({', '.join(fixture_names)}):
+async def test_{operation_id}({', '.join(fixture_names)}):
   \"\"\"{summary}\"\"\"
   path = {path_value_prefix}'{path_value}'
   response = client.{method}(path)
@@ -187,11 +192,12 @@ def create_params_fixtures_content(param):
 
 # Function to create fixtures file content for POST method payloads and path params
 def create_fixtures_content(paths):
-  content = '\n'.join(
-    [
-      '# pylint: disable=wildcard-import,unused-wildcard-import,invalid-name,line-too-long',
-      'import pytest\n\n',
-    ]
+  content = (
+    '# pylint: disable=wildcard-import,unused-wildcard-import,invalid-name,line-too-long'
+    'import pytest\n\n'
+    'from dotenv import load_dotenv\n\n'
+    '# Load environment variables from .env file\n'
+    "load_dotenv('.devcontainer/.env')\n\n"
   )
 
   for path, methods in paths.items():
@@ -243,7 +249,7 @@ def generate_tests(spec, existing_tests):
     for path, methods in paths.items():
       for method, details in methods.items():
         endpoint_name = path.strip('/').replace('/', '_')
-        test_file_name = f'test_{method}_{endpoint_name}.py'
+        test_file_name = f'{method}_{endpoint_name}_test.py'
         test_file_path = tag_dir / test_file_name
         path = path_prefix + path
 

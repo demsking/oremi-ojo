@@ -37,15 +37,15 @@ install:
 	poetry install
 
 gen-tests:
-	python gen.py
+	python scripts/gen.py
 
 test: gen-tests
 	pytest -vv
 
-coverage: gen-tests
+coverage:
 	pytest --cov=server
 
-coverage-html: gen-tests
+coverage-html:
 	pytest --cov=server --cov-report=html
 
 lint:
@@ -62,9 +62,6 @@ update:
 	poetry update
 	devbox update
 	pre-commit autoupdate
-
-clean:
-	rm -rf dist/
 
 #
 ## Packaging
@@ -101,9 +98,6 @@ image-test:
 	  --tag $(IMAGE_NAME):test \
 	  --build-arg APP_NAME=$(APP_NAME) \
 	  --build-arg APP_VERSION=$(APP_VERSION)
-
-testserver: image-test
-	docker run -it --rm -v /tmp/data:/data -p 11111:1111 -e WORKER=1 $(IMAGE_NAME)
 
 publish: image-test
 	git commit pyproject.toml -m "Release $(APP_VERSION)"

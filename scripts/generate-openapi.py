@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+
+# Load environment variables from .env file
+load_dotenv('.devcontainer/.env')
 
 
 def generate_openapi():
