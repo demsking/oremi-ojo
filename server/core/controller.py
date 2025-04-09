@@ -83,7 +83,7 @@ class Controller:
   ) -> 'Controller.Response':
     prompt = (
       f'User Request: {user_input}.\n'
-      'Provider: {provider}.\n'
+      f'Provider: {provider}.\n'
       f'{data or "Response: Unable to fetch data for the specified location"}.\n'
     )
 
