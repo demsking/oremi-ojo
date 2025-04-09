@@ -1,26 +1,4 @@
-#
-## Stage 1: Build environment
-FROM python:3.11-alpine3.19 AS build-env
-
-ENV PATH="/root/.local/bin:$PATH"
-ENV POETRY_HOME='/usr/local'
-ENV POETRY_VIRTUALENVS_CREATE=false
-
-# Set the shell to /bin/ash and enable pipefail
-SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
-
-# Install build dependencies
-RUN apk update \
-  && apk add --no-cache curl \
-  && curl -sSL https://install.python-poetry.org | python3 -
-
-WORKDIR /src
-COPY poetry.lock pyproject.toml ./
-RUN poetry install --no-root --no-interaction --no-ansi --only=main
-
-#
-## Stage 2: Runtime environment
-FROM python:3.11-alpine3.19
+FROM python:3.11-alpine3.21
 
 ENV PATH="/opt/oremi-weather-agent/bin:/usr/local/bin:$PATH"
 ENV PYTHONPATH="/opt/oremi-weather-agent:/usr/local/lib/python3.11/site-packages"
@@ -41,9 +19,12 @@ ENV LOG_FILE=
 # Set the shell to /bin/ash and enable pipefail
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
-# Copy built Python dependencies from the build-env stage
-COPY --from=build-env /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
-COPY --from=build-env /usr/local/bin/ /usr/local/bin/
+# Upgrade pip and setuptools to the latest version
+RUN pip install --upgrade pip setuptools wheel
+
+# Build Python dependencies
+COPY build/requirements.txt /opt/oremi-weather-agent/
+RUN pip install --no-cache-dir -r /opt/oremi-weather-agent/requirements.txt
 
 # Binaries
 COPY bin/* /opt/oremi-weather-agent/bin/

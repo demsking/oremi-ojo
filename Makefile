@@ -70,7 +70,11 @@ build/context:
 	mkdir -p build/
 	touch $@
 
-image: build/context
+build/requirements.txt: pyproject.toml poetry.lock
+	mkdir -p build/
+	poetry export --only=main --without-hashes -f requirements.txt -o $@
+
+image: build/context build/requirements.txt
 	docker buildx use $(APP_NAME)
 	docker buildx build . \
 	  --platform linux/amd64,linux/arm64 \
@@ -78,8 +82,6 @@ image: build/context
 	  --progress plain \
 	  --tag $(IMAGE_NAME):$(APP_VERSION) \
 	  --tag $(IMAGE_NAME):latest \
-	  --build-arg APP_NAME=$(APP_NAME) \
-	  --build-arg APP_VERSION=$(APP_VERSION) \
 	  --label "org.opencontainers.image.title=$(APP_NAME)" \
 	  --label "org.opencontainers.image.description=$(shell python scripts/metadata.py description)" \
 	  --label "org.opencontainers.image.version=$(APP_VERSION)" \
@@ -92,12 +94,10 @@ image: build/context
 	  --label "org.opencontainers.image.vendor=Sébastien Demanou" \
 	  --label "org.opencontainers.image.licenses=$(shell python scripts/metadata.py license)"
 
-image-test:
+image-test: build/requirements.txt
 	docker build --debug . \
 	  --progress plain \
-	  --tag $(IMAGE_NAME):test \
-	  --build-arg APP_NAME=$(APP_NAME) \
-	  --build-arg APP_VERSION=$(APP_VERSION)
+	  --tag $(IMAGE_NAME):test
 
 publish: image-test
 	git commit pyproject.toml -m "Release $(APP_VERSION)"
