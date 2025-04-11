@@ -5,6 +5,8 @@ ENV PYTHONPATH="/opt/oremi-weather-agent:/usr/local/lib/python3.11/site-packages
 ENV PYTHONUNBUFFERED="1"
 ENV PYTHONDONTWRITEBYTECODE="1"
 
+ENV TZ=UTC
+
 ENV HOST="0.0.0.0"
 ENV PORT=1777
 
@@ -19,8 +21,12 @@ ENV LOG_FILE=
 # Set the shell to /bin/ash and enable pipefail
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
+# Install dependencies
+RUN apk update \
+  && apk add --no-cache tzdata
+
 # Upgrade pip and setuptools to the latest version
-RUN pip install --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Build Python dependencies
 COPY build/requirements.txt /opt/oremi-weather-agent/

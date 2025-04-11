@@ -1,6 +1,7 @@
-FROM python:3.11-alpine3.19
+FROM python:3.11-alpine3.21
 
 # Set environment variables
+ENV TZ=UTC
 ENV PATH="/home/devuser/.local/bin:$PATH"
 ENV POETRY_HOME="/home/devuser/.local"
 ENV POETRY_VIRTUALENVS_IN_PROJECT=true
@@ -10,7 +11,7 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 # Install dependencies
 RUN apk update \
-  && apk add --no-cache curl git make vim
+  && apk add --no-cache curl git make vim tzdata
 
 # Install Poetry for the root user (temporarily)
 RUN curl -sSL https://install.python-poetry.org | python -
