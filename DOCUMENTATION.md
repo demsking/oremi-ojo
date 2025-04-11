@@ -86,7 +86,7 @@ of these variables, grouped by their purpose.
 ### HTTP Configuration
 
 - **HOST**: The host address on which the application will listen. Default is `"127.0.0.1"`.
-- **PORT**: The port number on which the application will listen. Default is `5020`.
+- **PORT**: The port number on which the application will listen. Default is `1777`.
 - **USER_AGENT**: User agent string for HTTP requests. This string identifies
   the application and its version in HTTP requests. Default is
   `"<APP_NAME>/<APP_VERSION>"`.
@@ -102,12 +102,6 @@ These variables control HTTP request behavior and caching settings.
 
 - **OLLAMA_BASEURL**: Base URL of the Ollama API. Required for communication with Ollama services.
 - **OLLAMA_MODEL**: Model name to use for Ollama services. It must support Tools. Default is `"llama3.2"`.
-
-### CORS Configuration
-
-- **ALLOWED_ORIGINS**: A comma-separated list of origins allowed for
-  cross-origin requests. This helps secure the API by limiting access to
-  trusted domains (e.g., `"https://example.com,https://another.com"`).
 
 ### API and Logging Configuration
 

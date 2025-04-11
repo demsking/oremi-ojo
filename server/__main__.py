@@ -21,7 +21,6 @@ import uvicorn.config
 
 from server.core.api import BASE_PATH
 from server.core.assistant import Assistant
-from server.core.config import ALLOWED_ORIGINS
 from server.core.config import CACHE_DIR
 from server.core.config import HOST
 from server.core.config import LOG_FILE
@@ -74,7 +73,6 @@ async def main():
   logger.info(f'API Base Path: {BASE_PATH}')
   logger.info(f'User Agent: {USER_AGENT}')
   logger.info(f'Cache Directory: {CACHE_DIR}')
-  logger.info(f'Allowed Origins: {ALLOWED_ORIGINS or "*"}')
   logger.info(f'Ollama URL: {OLLAMA_BASEURL}')
   logger.info(f'Ollama Model: {OLLAMA_MODEL}')
   logger.info(f'Log Level: {LOG_LEVEL_STR}')

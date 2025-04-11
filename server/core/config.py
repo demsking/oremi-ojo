@@ -51,10 +51,6 @@ This string identifies the application and its version in HTTP requests.
 CACHE_DIR = getenv('CACHE_DIR', default=os.path.expanduser(f'~/.cache/{APP_NAME}'))
 """The directory in which to store cached data."""
 
-ALLOWED_ORIGINS = getenv('CORS_ALLOWED_ORIGINS', expected_type=list, default=[])
-"""A list of allowed origins for Cross-Origin Resource Sharing (CORS). This
-helps control which external domains can interact with the API."""
-
 ROOT_PATH = getenv('ROOT_PATH', default='/')
 """The root path for the API, which defines the base URL path for all routes."""
 

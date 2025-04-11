@@ -18,11 +18,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi import Response
-from fastapi.middleware.cors import CORSMiddleware
 
 from .core.api import BASE_PATH
 from .core.assistant import Assistant
-from .core.config import ALLOWED_ORIGINS
 from .core.config import OLLAMA_BASEURL
 from .core.config import OLLAMA_MODEL
 from .core.controller import Controller
@@ -118,14 +116,6 @@ api = FastAPI(
     geocode_tag,
     version_tag,
   ],
-)
-
-api.add_middleware(
-  CORSMiddleware,
-  allow_origins=ALLOWED_ORIGINS,
-  allow_credentials=True,
-  allow_methods=['*'],
-  allow_headers=['*'],
 )
 
 assistant = Assistant(

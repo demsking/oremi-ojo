@@ -18,6 +18,7 @@ import httpx
 from ollama import AsyncClient
 from ollama import GenerateResponse
 from ollama import Message
+from ollama import Options
 from ollama import ResponseError
 from ollama import Tool
 
@@ -77,7 +78,11 @@ class Agent:
       timeout=httpx.Timeout(None),  # no timeout
     )
 
-  async def generate(self, prompt: str) -> GenerateResponse | None:
+  async def generate(
+    self,
+    prompt: str,
+    options: Options | None = None,
+  ) -> GenerateResponse | None:
     self.logger.debug(f'Generating with prompt:\n{prompt}')
 
     try:
@@ -86,6 +91,7 @@ class Agent:
         prompt=prompt,
         system=self.system or '',
         stream=False,
+        options=options,
       )
     except ResponseError as error:
       self.logger.error(f'Ollama Error: {error.error}')
