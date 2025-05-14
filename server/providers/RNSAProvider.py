@@ -46,7 +46,11 @@ class RNSAProvider(Provider):
   def __init__(self, controller: Controller, logger: logging.Logger) -> None:
     super().__init__('Réseau National de Surveillance Aérobiologique', controller, logger)
 
-    self.client = HttpClient(base_url='https://pollens.fr', expire_after=timedelta(minutes=60))
+    self.client = HttpClient(
+      base_url='https://pollens.fr',
+      expire_after=timedelta(minutes=60),
+      logger=logger,
+    )
 
   async def fetch(self, *, lon: float, lat: float) -> PollenData | None:
     location = await Geocode.reverse(lat=lat, lon=lon)
@@ -65,7 +69,7 @@ class RNSAProvider(Provider):
 
       return PollenData(
         level=data.riskLevel,
-        risk=risk,
+        risk=risk,  # type: ignore
         pollen_names=pollen_names or None,
       )
 

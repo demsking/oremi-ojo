@@ -116,11 +116,3 @@ These variables control the API root path, logging behavior, and server settings
 - **LOG_LEVEL**:
   Controls the verbosity of logs. Options: `'DEBUG'`, `'INFO'`, `'WARNING'`,
   `'ERROR'`, `'CRITICAL'`. Defaults to `'INFO'`.
-
-### Performance Configuration
-
-Settings that control the server's performance.
-
-- **WORKERS**:
-  The number of worker processes for handling requests. Defaults to the
-  number of CPU cores on the system.

@@ -91,9 +91,11 @@ def create_forecast_endpoints(
     Index (AQI), PM2.5, PM10, NO₂, and O₃ levels. Users can specify a timezone
     to adjust the data accordingly.
     """
-    return Response(
+    data = await air_quality.fetch(lat=lat, lon=lon)
+
+    return Response[EAQIData | USAQIData](
       provider=air_quality.name,
-      data=await air_quality.fetch(lat=lat, lon=lon),
+      data=data,
     )
 
   @api.get('/pollen', tags=[tag])

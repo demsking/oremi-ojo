@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import multiprocessing
 import os
 
 from oremi_core.vars import getenv
@@ -61,7 +60,3 @@ to the console by default."""
 LOG_LEVEL = getenv('LOG_LEVEL', default='INFO')
 """The log level used to control the verbosity of application logs. Options include 'DEBUG', 'INFO',
 'WARNING', 'ERROR', and 'CRITICAL'."""
-
-WORKERS = getenv('WORKERS', default=multiprocessing.cpu_count(), expected_type=int)
-"""The number of worker processes to run for handling incoming API requests. By default, it uses
-the number of CPU cores available on the system."""

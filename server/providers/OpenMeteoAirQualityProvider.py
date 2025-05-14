@@ -59,6 +59,7 @@ class OpenMeteoAirQualityProvider(Provider):
     self.client = HttpClient(
       base_url='https://air-quality-api.open-meteo.com',
       expire_after=timedelta(minutes=30),
+      logger=logger,
     )
 
   @staticmethod
@@ -68,7 +69,7 @@ class OpenMeteoAirQualityProvider(Provider):
         return level
     return 'unknown'
 
-  async def fetch(self, *, lon: float, lat: float) -> AirQualityData:
+  async def fetch(self, *, lon: float, lat: float) -> USAQIData | EAQIData:
     self.logger.info(f'Fetching air quality data for geo ({lon}, {lat})')
 
     current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
@@ -101,6 +102,6 @@ class OpenMeteoAirQualityProvider(Provider):
 
     index = data.hourly.time.index(current_time_str)
     air_quality = raw[index]
-    level = OpenMeteoAirQualityProvider.determine_level(air_quality, levels)
+    level = OpenMeteoAirQualityProvider.determine_level(air_quality, levels)  # type: ignore
 
-    return response_class(value=air_quality, level=level, unit=unit)
+    return response_class(value=air_quality, level=level, unit=unit)  # type: ignore

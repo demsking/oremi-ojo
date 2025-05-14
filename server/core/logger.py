@@ -1,4 +1,4 @@
-# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2025 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,9 +32,15 @@ LOG_LEVEL_MAP = {
 LOG_LEVEL_STR = os.environ.get('LOG_LEVEL', 'INFO').upper()
 log_file = os.environ.get('LOG_FILE')
 
-# Convert log level string to integer
-log_level = LOG_LEVEL_MAP.get(LOG_LEVEL_STR, logging.INFO)  # Default to INFO if invalid
 
-# Set global log level and create logger
-Logger.set_global_level(log_level)  # type: ignore
-logger = Logger.create(APP_NAME, filename=log_file, level=log_level)
+def create_logger(suffix: str = '') -> logging.Logger:
+  """
+  Create a logger with the specified name and the global log level.
+  """
+  log_level = LOG_LEVEL_MAP.get(LOG_LEVEL_STR, logging.INFO)  # Default to INFO if invalid
+  name = f'{APP_NAME} - {suffix}' if suffix else APP_NAME
+
+  # Set global log level and create logger
+  Logger.set_global_level(log_level)  # type: ignore
+
+  return Logger.create(name, filename=log_file, level=log_level)

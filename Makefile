@@ -33,13 +33,10 @@ down:
 stats:
 	docker compose -f .devcontainer/workspace.yaml stats
 
-install:
-	poetry install
+generate-tests:
+	python scripts/generate-tests.py
 
-gen-tests:
-	python scripts/gen.py
-
-test: gen-tests
+test: generate-tests
 	pytest -vv
 
 coverage:
@@ -54,14 +51,22 @@ lint:
 fix:
 	ruff check . --fix
 
-# Show outdated dependencies using poetry
-outdated:
-	poetry show --outdated
+
+#
+## Dependencies
+install:
+	rm -rf .venv
+	uv venv
+	uv sync
+
+outdated: install
+	uv pip list --outdated
 
 update:
-	poetry update
+	uv sync --upgrade
 	devbox update
 	pre-commit autoupdate
+
 
 #
 ## Packaging
@@ -70,11 +75,9 @@ build/context:
 	mkdir -p build/
 	touch $@
 
-build/requirements.txt: pyproject.toml poetry.lock
-	mkdir -p build/
-	poetry export --only=main --without-hashes -f requirements.txt -o $@
-
-image: build/context build/requirements.txt
+image: build/context
+	@echo "Building $(IMAGE_NAME):$(APP_VERSION)"
+	uv lock
 	docker buildx use $(APP_NAME)
 	docker buildx build . \
 	  --platform linux/amd64,linux/arm64 \
@@ -86,21 +89,19 @@ image: build/context build/requirements.txt
 	  --label "org.opencontainers.image.description=$(shell python scripts/metadata.py description)" \
 	  --label "org.opencontainers.image.version=$(APP_VERSION)" \
 	  --label "org.opencontainers.image.revision=$(shell git rev-parse HEAD)" \
-	  --label "org.opencontainers.image.authors=$(shell python scripts/metadata.py authors)" \
+	  --label "org.opencontainers.image.authors=Sébastien Demanou <demsking@gmail.com>" \
 	  --label "org.opencontainers.image.created=$(shell date --rfc-3339=seconds)" \
-	  --label "org.opencontainers.image.source=$(shell python scripts/metadata.py repository)" \
-	  --label "org.opencontainers.image.url=$(shell python scripts/metadata.py repository)" \
-	  --label "org.opencontainers.image.documentation=$(shell python scripts/metadata.py documentation)" \
 	  --label "org.opencontainers.image.vendor=Sébastien Demanou" \
 	  --label "org.opencontainers.image.licenses=$(shell python scripts/metadata.py license)"
 
-image-test: build/requirements.txt
+image-test:
+	uv lock
 	docker build --debug . \
 	  --progress plain \
 	  --tag $(IMAGE_NAME):test
 
 publish: image-test
-	git commit pyproject.toml -m "Release $(APP_VERSION)"
+	git commit pyproject.toml uv.lock -m "Release $(APP_VERSION)"
 	$(MAKE) image
 	git tag v$(APP_VERSION)
 	git push --tags origin main

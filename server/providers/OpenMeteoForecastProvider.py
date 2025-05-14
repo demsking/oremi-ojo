@@ -37,6 +37,7 @@ class OpenMeteoForecastProvider(Provider):
     self.client = HttpClient(
       base_url='https://api.open-meteo.com',
       expire_after=timedelta(minutes=30),
+      logger=logger,
     )
 
     # Setup the Open-Meteo API client with cache and retry on error

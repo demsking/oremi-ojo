@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 import datetime
+import logging
 import urllib.parse
 from typing import Any
 
@@ -21,7 +22,6 @@ import httpx
 
 from .config import CACHE_DIR
 from .config import USER_AGENT
-from .logger import logger
 
 __all__ = [
   'HttpClient',
@@ -37,8 +37,11 @@ class HttpClient(hishel.AsyncCacheClient):
     *,
     headers: dict[str, str] | None = None,
     expire_after: datetime.timedelta | None = None,
+    logger: logging.Logger | None = None,
     **kwargs,
   ) -> None:
+    self.logger = logger
+
     storage = hishel.AsyncFileStorage(
       ttl=expire_after.seconds if expire_after else 600,
       base_path=CACHE_DIR,
@@ -90,8 +93,11 @@ class HttpClient(hishel.AsyncCacheClient):
     headers: dict[str, str] | None = None,
     **kwargs,
   ) -> httpx.Response:
-    url_params = '?' + urllib.parse.urlencode(params) if params else ''
-    logger.debug(f'{method} {self.base_url}{url}{url_params} - json={json} - headers={headers}')
+    if self.logger:
+      url_params = '?' + urllib.parse.urlencode(params) if params else ''
+      full_url = str(self.base_url) + url + url_params
+
+      self.logger.debug(f'{method} {full_url} data={data}')
 
     response = await super().request(
       method,
@@ -102,9 +108,6 @@ class HttpClient(hishel.AsyncCacheClient):
       headers=headers,
       **kwargs,
     )
-
-    if response.status_code == 422:
-      logger.error(response.json())
 
     response.raise_for_status()
 
