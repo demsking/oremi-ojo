@@ -1,4 +1,4 @@
-# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2025 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,19 +21,23 @@ from ..core.geo import Geocode
 from ..core.geo import Location
 from ..core.http import HttpClient
 from ..core.provider import Provider
-from ..models.rnsa import PollenData
-from ..models.rnsa import RNSAResponse
+from ..models.pollen import DailyPollenForecast
+from ..models.pollen import PollenData
 
 
-class RNSAProvider(Provider):
+class MeteoPollenProvider(Provider):
   """
-  The National Aerobiological Surveillance Network (R.N.S.A.) is an association
-  under the law of 1901, created in 1996 to continue the work carried out since
-  1985 by the Aerobiology Laboratory of the Pasteur Institute in Paris.
+  Météo Pollen is an innovative service that provides real-time information on
+  pollen levels in the air, helping allergy sufferers anticipate high-risk
+  periods and manage their symptoms more effectively. It relies on a network of
+  physical sensors deployed across cities to measure pollen concentrations,
+  combined with real-time analysis of different pollen types in the area,
+  offering accurate forecasts and personalized alerts to reduce allergic
+  reactions.
 
   It provides information about pollens for France.
 
-  See https://pollens.fr/
+  See https://meteo-pollen.com
   """
 
   LEVEL: ClassVar[dict[int, str]] = {
@@ -44,10 +48,10 @@ class RNSAProvider(Provider):
   }
 
   def __init__(self, controller: Controller, logger: logging.Logger) -> None:
-    super().__init__('Réseau National de Surveillance Aérobiologique', controller, logger)
+    super().__init__('Météo Pollen', controller, logger)
 
     self.client = HttpClient(
-      base_url='https://pollens.fr',
+      base_url='https://meteo-pollen.com/api',
       expire_after=timedelta(minutes=60),
       logger=logger,
     )
@@ -58,17 +62,25 @@ class RNSAProvider(Provider):
     return await self.fetch_location(location) if location else None
 
   async def fetch_location(self, location: Location) -> PollenData | None:
-    if location.address.country_code == 'fr' and location.address.postcode:
-      code = f'{location.address.postcode}'[0:2]
-      self.logger.info(f'Fetching pollens data for French department {code}')
-      response = await self.client.get(f'/risks/thea/counties/{code}')
+    if location.address.country_code == 'fr':
+      self.logger.info(f'Fetching pollens data for {location}')
+      response = await self.client.get(
+        url='/predictions',
+        params={
+          'lat': location.lat,
+          'lon': location.lon,
+          'forecastDays': 1,
+        },
+      )
 
-      data = RNSAResponse.model_validate_json(response.text)
-      pollen_names = [pollen.pollenName for pollen in data.risks if data.riskLevel and pollen.level == data.riskLevel]
-      risk = RNSAProvider.LEVEL[data.riskLevel]
+      data = response.json()
+      data_list = [DailyPollenForecast.model_validate(item) for item in data]
+      max_risk_level: int = max(pollen.riskLevel for pollen in data_list)
+      pollen_names = [pollen.name for pollen in data_list if pollen.riskLevel > 0]
+      risk = MeteoPollenProvider.LEVEL[max_risk_level]
 
       return PollenData(
-        level=data.riskLevel,
+        level=max_risk_level,
         risk=risk,  # type: ignore
         pollen_names=pollen_names or None,
       )

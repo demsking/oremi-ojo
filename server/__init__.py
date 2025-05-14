@@ -43,9 +43,9 @@ from .endpoints.forecast import create_forecast_endpoints
 from .endpoints.generative import create_generative_endpoints
 from .endpoints.geocode import create_geocode_endpoints
 from .endpoints.version import create_version_endpoints
+from .providers.MeteoPollenProvider import MeteoPollenProvider
 from .providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from .providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from .providers.RNSAProvider import RNSAProvider
 
 
 SERVICE_TITLE = 'Oremi Weather Agent Documentation'
@@ -155,14 +155,14 @@ controller = Controller(
 
 forecast = OpenMeteoForecastProvider(controller, logger)
 air_quality = OpenMeteoAirQualityProvider(controller, logger)
-rnsa = RNSAProvider(controller, logger)
+pollen = MeteoPollenProvider(controller, logger)
 
 
 create_generative_endpoints(
-  tag=agents_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, rnsa=rnsa
+  tag=agents_tag['name'], api=api, controller=controller, forecast=forecast, air_quality=air_quality, pollen=pollen
 )
 
-create_forecast_endpoints(tag=forecast_tag['name'], api=api, forecast=forecast, air_quality=air_quality, rnsa=rnsa)
+create_forecast_endpoints(tag=forecast_tag['name'], api=api, forecast=forecast, air_quality=air_quality, pollen=pollen)
 create_agent_endpoints(tag=agents_tag['name'], api=api, controller=controller)
 create_geocode_endpoints(geocode_tag['name'], api)
 create_version_endpoints(version_tag['name'], api)

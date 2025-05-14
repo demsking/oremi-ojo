@@ -19,13 +19,13 @@ from fastapi import FastAPI
 from fastapi import Query
 from pydantic import BaseModel
 
+from ..providers.MeteoPollenProvider import MeteoPollenProvider
+from ..providers.MeteoPollenProvider import PollenData
 from ..providers.OpenMeteoAirQualityProvider import EAQIData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoAirQualityProvider import USAQIData
 from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from ..providers.RNSAProvider import PollenData
-from ..providers.RNSAProvider import RNSAProvider
 
 
 ResponseData = TypeVar('ResponseData')
@@ -41,9 +41,32 @@ def create_forecast_endpoints(
   api: FastAPI,
   forecast: OpenMeteoForecastProvider,
   air_quality: OpenMeteoAirQualityProvider,
-  rnsa=RNSAProvider,
+  pollen=MeteoPollenProvider,
 ) -> None:
-  @api.get('/forecast', tags=[tag])
+  @api.get(
+    path='/forecast',
+    tags=[tag],
+    responses={
+      200: {
+        'content': {
+          'application/json': {
+            'example': Response.model_validate(
+              {
+                'provider': 'Open-Météo',
+                'data': {
+                  'temperature': '17.1°C',
+                  'humidity': '50%',
+                  'wind_speed': '12.5 km/h',
+                  'sunrise': '06:08:00',
+                  'sunset': '21:25:00',
+                },
+              }
+            )
+          },
+        },
+      },
+    },
+  )
   async def get_forecast(
     lat: float = Query(
       description='The latitude of the location for which the weather forecast is requested.',
@@ -67,12 +90,26 @@ def create_forecast_endpoints(
     wind speed, sunrise, and sunset times. Users can also specify a timezone
     to adjust the forecast data accordingly.
     """
-    return Response(
+    return Response[ForecastData](
       provider=forecast.name,
       data=await forecast.fetch(lat=lat, lon=lon, timezone=timezone),
     )
 
-  @api.get('/air-quality', tags=[tag])
+  @api.get(
+    '/air-quality',
+    tags=[tag],
+    responses={
+      200: {
+        'content': {
+          'application/json': {
+            'example': Response.model_validate(
+              {'provider': 'Open-Météo', 'data': {'value': 28, 'level': 'fair', 'unit': 'EAQI'}}
+            ),
+          },
+        }
+      }
+    },
+  )
   async def get_air_quality(
     lat: float = Query(
       description='The latitude of the location for which the air quality data is requested.',
@@ -98,7 +135,24 @@ def create_forecast_endpoints(
       data=data,
     )
 
-  @api.get('/pollen', tags=[tag])
+  @api.get(
+    path='/pollen',
+    tags=[tag],
+    responses={
+      200: {
+        'content': {
+          'application/json': {
+            'example': Response[PollenData].model_validate(
+              {
+                'provider': 'Météo Pollen',
+                'data': {'pollen_names': ['grass', 'urticaceae', 'oak', 'sorrel'], 'level': 3, 'risk': 'high'},
+              }
+            ),
+          },
+        },
+      },
+    },
+  )
   async def get_pollen(
     lat: float = Query(
       description='The latitude of the location for which the pollen data is requested.',
@@ -117,7 +171,7 @@ def create_forecast_endpoints(
     types, such as Grass, Birch, and Olive, along with their respective
     levels.
     """
-    return Response(
-      provider=rnsa.name,
-      data=await rnsa.fetch(lat=lat, lon=lon),
+    return Response[PollenData](
+      provider=pollen.name,  # type: ignore
+      data=await pollen.fetch(lat=lat, lon=lon),  # type: ignore
     )

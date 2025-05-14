@@ -19,13 +19,15 @@ from fastapi import HTTPException
 from fastapi import Query
 
 from ..core.controller import Controller
+from ..models.air_quality import EAQIData
+from ..models.air_quality import USAQIData
+from ..providers.MeteoPollenProvider import MeteoPollenProvider
+from ..providers.MeteoPollenProvider import PollenData
 from ..providers.OpenMeteoAirQualityProvider import AirQualityData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoForecastProvider import DailyForecastData
 from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from ..providers.RNSAProvider import PollenData
-from ..providers.RNSAProvider import RNSAProvider
 
 
 def create_generative_endpoints(
@@ -34,7 +36,7 @@ def create_generative_endpoints(
   controller: Controller,
   forecast: OpenMeteoForecastProvider,
   air_quality: OpenMeteoAirQualityProvider,
-  rnsa: RNSAProvider,
+  pollen: MeteoPollenProvider,
 ) -> None:
   example_response = Controller.Response[ForecastData | AirQualityData | PollenData].model_validate(
     {
@@ -125,7 +127,7 @@ def create_generative_endpoints(
       description='An optional context string that can be used for generating responses.',
       examples=['Current time: 12:34 PM'],
     ),
-  ) -> Controller.Response[ForecastData | DailyForecastData | AirQualityData | PollenData | NoneType]:
+  ) -> Controller.Response[ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData | NoneType]:
     """
     This endpoint generates responses related to weather, air quality, or pollen
     count for a specific location based on user queries. It identifies the requested
@@ -164,8 +166,8 @@ def create_generative_endpoints(
             provider = air_quality.name
             data = await air_quality.fetch(lat=location.lat, lon=location.lon)
         elif service == 'pollen':
-          provider = rnsa.name
-          data = await rnsa.fetch_location(location)
+          provider = pollen.name
+          data = await pollen.fetch_location(location)
 
         if provider:
           return await controller.generate_response(q, provider, location, service, data, dateinfo)

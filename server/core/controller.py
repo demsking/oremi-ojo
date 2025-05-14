@@ -14,6 +14,8 @@
 # ==============================================================================
 import logging
 from datetime import datetime
+from types import NoneType
+from typing import Any
 from typing import Generic
 from typing import Literal
 from typing import TypeVar
@@ -29,15 +31,11 @@ from ..tools.date_tool import Period
 from ..tools.location_tool import GetLocationTool
 from ..tools.service_tool import GetServiceTool
 
-ResponseData = TypeVar('ResponseData', bound=BaseModel)
+ResponseData = TypeVar('ResponseData', bound=BaseModel | NoneType)
 
 
 class Controller:
-  def __init__(
-    self,
-    assistant: Assistant,
-    logger: logging.Logger,
-  ):
+  def __init__(self, assistant: Assistant, logger: logging.Logger) -> None:
     self.logger = logger
     self.assistant = assistant
     self.response_agent = assistant.create_agent(
@@ -77,10 +75,10 @@ class Controller:
     user_input: str,
     provider: str,
     location: Location,
-    service: str,
-    data: ResponseData | None,
+    service: Literal['air-quality', 'weather', 'pollen'],
+    data: Any | None,
     dateinfo: 'Controller.DateInfo | None',
-  ) -> 'Controller.Response':
+  ) -> 'Controller.Response[Any]':
     prompt = (
       f'User Request: {user_input}.\n'
       f'Provider: {provider}.\n'
@@ -104,11 +102,11 @@ class Controller:
       data=data,
     )
 
-  async def get_date(self, user_input: str, *, timezone: str, context: str = ''):
+  async def get_date(self, user_input: str, *, timezone: str, context: str = '') -> 'Controller.DateInfo':
     tool, start, end = await self.date_agent.get_date(user_input, timezone=timezone, context=context)
     start_date = start.date().isoformat()
     end_date = end.date().isoformat()
-    period = GetDateTool.period_map[tool.name]
+    period = GetDateTool.period_map[tool.name]  # type: ignore
 
     return Controller.DateInfo(
       tool=tool,
