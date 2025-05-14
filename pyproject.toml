@@ -40,9 +40,9 @@ dependencies = [
 
 [project.urls]
 "Say Thanks!" = "https://www.buymeacoffee.com/demsking"
-"Documentation" = "https://demsking.gitlab.io/oremi-kansa-agent"
-"Source" = "https://gitlab.com/demsking/oremi-kansa-agent"
-"Issues" = "https://gitlab.com/demsking/oremi-kansa-agent/-/issues"
+"Documentation" = "https://demsking.gitlab.io/oremi-weather-agent"
+"Source" = "https://gitlab.com/demsking/oremi-weather-agent"
+"Issues" = "https://gitlab.com/demsking/oremi-weather-agent/-/issues"
 
 [dependency-groups]
 dev = [
