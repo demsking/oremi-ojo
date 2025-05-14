@@ -71,7 +71,9 @@ update:
 #
 ## Packaging
 build/context:
-	docker buildx create --name $(APP_NAME) --bootstrap
+	@if ! docker buildx inspect $(APP_NAME) > /dev/null 2>&1; then \
+		docker buildx create --name $(APP_NAME) --bootstrap; \
+	fi
 	mkdir -p build/
 	touch $@
 
