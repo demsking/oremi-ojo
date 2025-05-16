@@ -72,11 +72,6 @@ def create_agent_endpoints(
         'What is the pollen count in Ouaguadougou today?',
       ],
     ),
-    context: str | None = Query(
-      default=None,
-      description='An optional context string that can be used for generating responses.',
-      examples=['Timezone: Africa/Douala'],
-    ),
   ) -> Location:
     """
     This endpoint extracts the location from a user query. It analyzes the input
@@ -87,7 +82,7 @@ def create_agent_endpoints(
     infer the location. If no location can be identified from the input, the
     endpoint returns an error.
     """
-    location = await controller.location_agent.get_user_input_location(q, context=context or '')
+    location = await controller.location_agent.get_user_input_location(q)
 
     if location:
       return location

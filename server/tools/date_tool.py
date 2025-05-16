@@ -114,12 +114,10 @@ class GetDateTool:
       tools=[Tool(function=item) for item in weather_tools],
     )
 
-  async def get_date(
-    self, user_input: str, *, timezone: str, context: str = ''
-  ) -> tuple[Tool.Function, datetime.datetime, datetime.datetime]:
+  async def get_date(self, user_input: str, *, timezone: str) -> tuple[Tool.Function, datetime.datetime, datetime.datetime]:
     current_time = get_current_datetime(timezone)
     current_time_zero = get_current_datetime(timezone).replace(minute=0, second=0, microsecond=0)
-    result = await self.agent.query(input=(f'User Request: {user_input}.\nCurrent date and time: {current_time}.\n{context}'))
+    result = await self.agent.query(input=(f'User Request: {user_input}.\nCurrent date and time: {current_time}.'))
 
     if result:
       self.logger.debug(f'Extracted date from user input: {result.arguments}')

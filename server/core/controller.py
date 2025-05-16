@@ -20,7 +20,6 @@ from typing import Generic
 from typing import Literal
 from typing import TypeVar
 
-from ollama import Tool
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -32,6 +31,7 @@ from ..tools.location_tool import GetLocationTool
 from ..tools.service_tool import GetServiceTool
 
 ResponseData = TypeVar('ResponseData', bound=BaseModel | NoneType)
+WeatherService = Literal['air-quality', 'weather', 'pollen']
 
 
 class Controller:
@@ -51,6 +51,46 @@ class Controller:
         '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
         '- Feel like a helpful assistant speaking to a human\n'
         '- Always use short, simple sentences\n'
+        'Your responses will be used by a text-to-speech (TTS) service. Make sure they are easy to pronounce and suitable for basic TTS engines.\n'
+      )
+    )
+
+    self.alerts_response_agent = assistant.create_agent(
+      system=(
+        'You are an emergency alert specialist. Deliver urgent notifications about weather, pollen, and air quality risks. '
+        "Prioritize immediate dangers and actionable advice. Respond in the user's language using only active alerts.\n\n"
+        'Critical response rules:\n'
+        # '1. URGENCY FIRST:\n'
+        # '   - Start with the most severe threat\n'
+        # '   - Never greet or use filler words\n'
+        # '   - Maximum 3 sentences\n\n'
+        '1. ALERT TYPE HANDLING:\n'
+        '   - POLLEN: Only mention risk level 2+ (group by severity)\n'
+        '   - WEATHER: Highlight only warnings (storms, heatwaves, etc.)\n'
+        '   - AIR QUALITY: Report AQI 4+ (poor or dangerous)\n\n'
+        # '3. STRUCTURE:\n'
+        # '   [Severity] + [Threat] + [Type] + [Action]\n'
+        # "   Example: 'Heatwave warning! 38°C expected. Avoid outdoor activities.'\n\n"
+        '2. FORMATTING:\n'
+        '   - Weather: Use ! for immediate dangers\n'
+        '   - Pollen: Specify type/category (tree/grass/weed)\n'
+        '   - Air Quality: Include pollutant if available\n\n'
+        '3. ACTIONS:\n'
+        '   Always end with one concrete recommendation\n\n'
+        'Your response must:\n'
+        "- Be conversational and adapted to the user's language\n"
+        '- Avoid listing raw data\n'
+        "- Subtly mention the source of the data by extracting the provider's name from the context\n"
+        '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
+        '- Feel like a helpful assistant speaking to a human\n'
+        '- Always use short, simple sentences\n'
+        'Never mention:\n'
+        "- Do not start with greetings like 'Hello', 'Bonjour', or the user's name. Go straight to the point.\n"
+        '- Low-risk conditions (level 1/0)\n'
+        '- Technical measurements\n'
+        '- Future forecasts beyond 24 hours\n'
+        '- Multiple alerts of same type/severity\n'
+        '- Avoid any formating or new lines.\n'
         'Your responses will be used by a text-to-speech (TTS) service. Make sure they are easy to pronounce and suitable for basic TTS engines.\n'
       )
     )
@@ -75,14 +115,16 @@ class Controller:
     user_input: str,
     provider: str,
     location: Location,
-    service: Literal['air-quality', 'weather', 'pollen'],
+    service: WeatherService,
     data: Any | None,
+    temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
   ) -> 'Controller.Response[Any]':
     prompt = (
       f'User Request: {user_input}.\n'
       f'Provider: {provider}.\n'
       f'{data or "Response: Unable to fetch data for the specified location"}.\n'
+      f'Temperature Unit: {temperature_unit}\n'
     )
 
     if dateinfo:
@@ -102,35 +144,72 @@ class Controller:
       data=data,
     )
 
-  async def get_date(self, user_input: str, *, timezone: str, context: str = '') -> 'Controller.DateInfo':
-    tool, start, end = await self.date_agent.get_date(user_input, timezone=timezone, context=context)
-    start_date = start.date().isoformat()
-    end_date = end.date().isoformat()
+  async def generate_alert_response(
+    self,
+    provider: str,
+    service: WeatherService,
+    data: BaseModel | None,
+    temperature_unit: str,
+    dateinfo: 'Controller.DateInfo | None',
+    language: str,
+  ) -> 'Controller.AlertResponse[Any]':
+    prompt = (
+      f'Provider: {provider}.\n'
+      f'{data or "Response: Unable to fetch data for the specified location"}.\n'
+      f'Temperature Unit: {temperature_unit}\n'
+      f'User Language: {language}'
+    )
+
+    if dateinfo:
+      if dateinfo.start == dateinfo.end:
+        prompt += f'Date: {dateinfo.start_date}.'
+      else:
+        prompt += f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
+
+    result = await self.alerts_response_agent.generate(prompt)
+
+    return Controller.AlertResponse(
+      service=service,
+      provider=provider,
+      message=result.response if result else 'No response',
+      data=data,
+    )
+
+  async def get_date(self, user_input: str, *, timezone: str) -> 'Controller.DateInfo':
+    tool, start, end = await self.date_agent.get_date(user_input, timezone=timezone)
     period = GetDateTool.period_map[tool.name]  # type: ignore
 
     return Controller.DateInfo(
-      tool=tool,
       period=period,
       start=start,
-      start_date=start_date,
       end=end,
-      end_date=end_date,
       timezone=timezone,
     )
 
   class DateInfo(BaseModel):
-    tool: Tool.Function
     period: Period
     start: datetime
-    start_date: str
     end: datetime
-    end_date: str
     timezone: str
+
+    @property
+    def start_date(self) -> str:
+      return self.start.date().isoformat()
+
+    @property
+    def end_date(self) -> str:
+      return self.end.date().isoformat()
 
   class Response(BaseModel, Generic[ResponseData]):
     provider: str = Field(..., description='Name of the data provider')
     input: str = Field(..., description='User input that triggered the response')
-    service: Literal['air-quality', 'weather', 'pollen'] = Field(..., description='Service used for generating the response')
+    service: WeatherService = Field(..., description='Service used for generating the response')
     message: str = Field(..., description='Message or explanation related to the response')
     data: ResponseData | None = Field(..., description='Structured data returned by the provider')
     location: Location = Field(..., description='Location information related to the response')
+
+  class AlertResponse(BaseModel, Generic[ResponseData]):
+    provider: str = Field(..., description='Name of the data provider')
+    service: WeatherService = Field(..., description='Service used for generating the response')
+    message: str = Field(..., description='Message or explanation related to the response')
+    data: ResponseData | None = Field(..., description='Structured data returned by the provider')

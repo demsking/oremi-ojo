@@ -48,8 +48,8 @@ class GetLocationTool:
       ],
     )
 
-  async def get_user_input_location(self, user_input: str, *, context: str = '') -> Location | None:
-    result = await self.agent.query(input=f'User Request: {user_input}.\n{context}')
+  async def get_user_input_location(self, user_input: str) -> Location | None:
+    result = await self.agent.query(input=f'User Request: {user_input}.')
 
     if result:
       self.logger.debug(f'Extracted location from user input: {result.arguments}')

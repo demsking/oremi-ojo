@@ -13,12 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 from types import NoneType
+from typing import Any
+from typing import Literal
 
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Query
 
 from ..core.controller import Controller
+from ..core.controller import WeatherService
+from ..core.time import get_current_datetime
 from ..models.air_quality import EAQIData
 from ..models.air_quality import USAQIData
 from ..providers.MeteoPollenProvider import MeteoPollenProvider
@@ -122,10 +126,11 @@ def create_generative_endpoints(
       description='The timezone identifier for the location for which the response is generated.',
       examples=['Europe/Paris', 'Africa/Douala', 'Africa/Lagos', 'America/New_York', 'Asia/Tokyo'],
     ),
-    context: str | None = Query(
-      default=None,
-      description='An optional context string that can be used for generating responses.',
-      examples=['Current time: 12:34 PM'],
+    temperature_unit: Literal['celsius', 'fahrenheit'] = Query(
+      'celsius',
+      alias='temperature-unit',
+      description='',
+      examples=['celsius', 'fahrenheit'],
     ),
   ) -> Controller.Response[ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData | NoneType]:
     """
@@ -142,10 +147,10 @@ def create_generative_endpoints(
     speed, sunrise and sunset times, or air quality and pollen levels. If the service
     or location cannot be determined, the endpoint returns an error.
     """
-    service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone, context=context or '')
+    service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone)
 
     if service:
-      location = location or await controller.location_agent.get_user_input_location(q, context=context or '')
+      location = location or await controller.location_agent.get_user_input_location(q)
 
       if location:
         provider = None
@@ -153,7 +158,7 @@ def create_generative_endpoints(
         dateinfo = None
 
         if service == 'weather' or service == 'air-quality':
-          dateinfo = await controller.get_date(q, timezone=timezone, context=context or '')
+          dateinfo = await controller.get_date(q, timezone=timezone)
 
           if service == 'weather':
             provider = forecast.name
@@ -167,10 +172,80 @@ def create_generative_endpoints(
             data = await air_quality.fetch(lat=location.lat, lon=location.lon)
         elif service == 'pollen':
           provider = pollen.name
-          data = await pollen.fetch_location(location)
+          data = await pollen.fetch(lon=location.lon, lat=location.lat)
 
         if provider:
-          return await controller.generate_response(q, provider, location, service, data, dateinfo)
+          return await controller.generate_response(q, provider, location, service, data, temperature_unit, dateinfo)
 
       raise HTTPException(status_code=400, detail='No location found for user input')
     raise HTTPException(status_code=404, detail='Unable to identify service for user input')
+
+  @api.get(
+    '/agent/alerts',
+    tags=[tag],
+    responses={
+      200: {
+        'content': {
+          'application/json': {
+            'example': Controller.AlertResponse[Any].model_validate(
+              {
+                'provider': 'Open-Météo',
+                'service': 'air-quality',
+                'message': "Alert! From Open-Météo, today's air quality is poor with an AQI of 32. Pollen levels are moderate from grass and weeds.\n\nWear comfortable clothing and stay hydrated to cope with the heat.",
+                'data': {'value': 28, 'level': 'fair', 'unit': 'EAQI'},
+              }
+            ),
+          },
+        },
+      },
+    },
+  )
+  async def generate_alerts_info(
+    service: WeatherService = Query(
+      description='',
+      examples=['air-quality', 'weather', 'pollen'],
+    ),
+    lat: float = Query(
+      description='',
+      examples=[48.8534951],
+    ),
+    lon: float = Query(
+      description='',
+      examples=[2.3483915],
+    ),
+    timezone: str = Query(
+      default='UTC',
+      description='The timezone identifier for the location for which the response is generated.',
+      examples=['Europe/Paris', 'Africa/Douala', 'Africa/Lagos', 'America/New_York', 'Asia/Tokyo'],
+    ),
+    language: str = Query('en', description='', examples=['fr', 'en']),
+    temperature_unit: Literal['celsius', 'fahrenheit'] = Query(
+      'celsius',
+      alias='temperature-unit',
+      description='Preferred unit for temperature values in alerts.',
+      examples=['celsius', 'fahrenheit'],
+    ),
+  ) -> Controller.AlertResponse[ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData | NoneType]:
+    provider = None
+    data = None
+    dateinfo = None
+
+    if service == 'weather' or service == 'air-quality':
+      date = get_current_datetime(timezone)
+      dateinfo = Controller.DateInfo(period='daily', start=date, end=date, timezone=timezone)
+
+      if service == 'weather':
+        provider = forecast.name
+
+        if dateinfo.period == 'hourly':
+          data = await forecast.fetch(lat=lat, lon=lon, timezone=timezone)
+        else:
+          data = await forecast.fetch_daily(lat=lat, lon=lon, dateinfo=dateinfo)
+      elif service == 'air-quality':
+        provider = air_quality.name
+        data = await air_quality.fetch(lat=lat, lon=lon)
+    elif service == 'pollen':
+      provider = pollen.name
+      data = await pollen.fetch(lon=lon, lat=lat)
+
+    return await controller.generate_alert_response(provider, service, data, temperature_unit, dateinfo, language)

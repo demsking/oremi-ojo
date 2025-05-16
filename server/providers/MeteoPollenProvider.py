@@ -17,7 +17,6 @@ from datetime import timedelta
 from typing import ClassVar
 
 from ..core.controller import Controller
-from ..core.geo import Geocode
 from ..core.geo import Location
 from ..core.http import HttpClient
 from ..core.provider import Provider
@@ -56,33 +55,31 @@ class MeteoPollenProvider(Provider):
       logger=logger,
     )
 
-  async def fetch(self, *, lon: float, lat: float) -> PollenData | None:
-    location = await Geocode.reverse(lat=lat, lon=lon)
+  async def fetch(self, lon: float, *, lat: float) -> PollenData | None:
+    self.logger.info(f'Fetching pollens data for lon={lon} lat={lat}')
+    response = await self.client.get(
+      url='/predictions',
+      params={
+        'lat': lat,
+        'lon': lon,
+        'forecastDays': 1,
+      },
+    )
 
-    return await self.fetch_location(location) if location else None
+    data = response.json()
+    data_list = [DailyPollenForecast.model_validate(item) for item in data]
+    max_risk_level: int = max(pollen.riskLevel for pollen in data_list)
+    pollen_names = [pollen.name for pollen in data_list if pollen.riskLevel > 0]
+    risk = MeteoPollenProvider.LEVEL[max_risk_level]
+
+    return PollenData(
+      level=max_risk_level,
+      risk=risk,  # type: ignore
+      pollen_names=pollen_names or None,
+    )
 
   async def fetch_location(self, location: Location) -> PollenData | None:
     if location.address.country_code == 'fr':
-      self.logger.info(f'Fetching pollens data for {location}')
-      response = await self.client.get(
-        url='/predictions',
-        params={
-          'lat': location.lat,
-          'lon': location.lon,
-          'forecastDays': 1,
-        },
-      )
-
-      data = response.json()
-      data_list = [DailyPollenForecast.model_validate(item) for item in data]
-      max_risk_level: int = max(pollen.riskLevel for pollen in data_list)
-      pollen_names = [pollen.name for pollen in data_list if pollen.riskLevel > 0]
-      risk = MeteoPollenProvider.LEVEL[max_risk_level]
-
-      return PollenData(
-        level=max_risk_level,
-        risk=risk,  # type: ignore
-        pollen_names=pollen_names or None,
-      )
+      return await self.fetch(lon=location.lon, lat=location.lat)
 
     return None
