@@ -31,7 +31,7 @@ class GetServiceTool:
       properties={
         'location': Tool.Function.Parameters.Property(type='string', description='The relevant location to handle'),
       },
-    ),
+    ),  # type: ignore
   )
 
   handle_air_quality_request = Tool.Function(

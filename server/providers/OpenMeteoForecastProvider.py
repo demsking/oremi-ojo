@@ -15,6 +15,7 @@
 import datetime  # use implicit import to enable datatime mocking
 import logging
 from datetime import timedelta
+from typing import Literal
 
 import openmeteo_requests
 import requests_cache
@@ -27,6 +28,8 @@ from ..core.provider import Provider
 from ..models.forecast import DailyForecastData
 from ..models.forecast import Forecast
 from ..models.forecast import ForecastData
+
+TemperatureUnit = Literal['celsius', 'fahrenheit']
 
 
 class OpenMeteoForecastProvider(Provider):
@@ -53,7 +56,7 @@ class OpenMeteoForecastProvider(Provider):
 
     return directions[index]
 
-  async def fetch_daily(self, *, lon: float, lat: float, dateinfo: Controller.DateInfo):
+  async def fetch_daily(self, *, lon: float, lat: float, dateinfo: Controller.DateInfo, temperature_unit: TemperatureUnit):
     self.logger.info(f'Fetching forecast for geo ({lon}, {lat})')
 
     url = 'https://api.open-meteo.com/v1/forecast'
@@ -75,22 +78,23 @@ class OpenMeteoForecastProvider(Provider):
       'timezone': dateinfo.timezone,
       'start_date': dateinfo.start_date,
       'end_date': dateinfo.end_date,
+      'temperature_unit': temperature_unit,
     }
 
     responses = self.openmeteo.weather_api(url, params=params)
 
     # Process daily data. The order of variables needs to be the same as requested.
     daily = responses[0].Daily()
-    daily_weather_code = daily.Variables(0).ValuesAsNumpy()
-    daily_temperature_2m_max = daily.Variables(1).ValuesAsNumpy()
-    daily_temperature_2m_min = daily.Variables(2).ValuesAsNumpy()
-    daily_sunrise = daily.Variables(3).ValuesInt64AsNumpy()
-    daily_sunset = daily.Variables(4).ValuesInt64AsNumpy()
-    daily_rain_sum = daily.Variables(5).ValuesAsNumpy()
-    daily_uv_index_max = daily.Variables(6).ValuesAsNumpy()
-    daily_wind_speed_10m_max = daily.Variables(7).ValuesAsNumpy()
-    daily_wind_direction_10m_dominant = daily.Variables(8).ValuesAsNumpy()
-    daily_wind_gusts_10m_max = daily.Variables(9).ValuesAsNumpy()
+    daily_weather_code = daily.Variables(0).ValuesAsNumpy()  # type: ignore
+    daily_temperature_2m_max = daily.Variables(1).ValuesAsNumpy()  # type: ignore
+    daily_temperature_2m_min = daily.Variables(2).ValuesAsNumpy()  # type: ignore
+    daily_sunrise = daily.Variables(3).ValuesInt64AsNumpy()  # type: ignore
+    daily_sunset = daily.Variables(4).ValuesInt64AsNumpy()  # type: ignore
+    daily_rain_sum = daily.Variables(5).ValuesAsNumpy()  # type: ignore
+    daily_uv_index_max = daily.Variables(6).ValuesAsNumpy()  # type: ignore
+    daily_wind_speed_10m_max = daily.Variables(7).ValuesAsNumpy()  # type: ignore
+    daily_wind_direction_10m_dominant = daily.Variables(8).ValuesAsNumpy()  # type: ignore
+    daily_wind_gusts_10m_max = daily.Variables(9).ValuesAsNumpy()  # type: ignore
 
     return DailyForecastData(
       weather_code=daily_weather_code[0].item(),
@@ -105,7 +109,9 @@ class OpenMeteoForecastProvider(Provider):
       wind_gusts_10m_max=daily_wind_gusts_10m_max[0].item(),
     )
 
-  async def _fetch_hourly(self, *, lon: float, lat: float, timezone: str | None) -> tuple[str, int, int, Forecast]:
+  async def _fetch_hourly(
+    self, *, lon: float, lat: float, timezone: str | None, temperature_unit: TemperatureUnit
+  ) -> tuple[int, int, Forecast]:
     self.logger.info(f'Fetching forecast for geo ({lon}, {lat})')
 
     current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
@@ -122,6 +128,7 @@ class OpenMeteoForecastProvider(Provider):
         'timezone': timezone or 'auto',
         'start_date': current_date,
         'end_date': current_date,
+        'temperature_unit': temperature_unit,
       },
     )
 
@@ -132,21 +139,23 @@ class OpenMeteoForecastProvider(Provider):
 
     return daily_index, hourly_index, forecast
 
-  async def fetch(self, *, lon: float, lat: float, timezone: str | None) -> ForecastData:
-    daily_index, hourly_index, forecast = await self._fetch_hourly(lon=lon, lat=lat, timezone=timezone)
+  async def fetch(self, *, lon: float, lat: float, timezone: str | None, temperature_unit: TemperatureUnit) -> ForecastData:
+    daily_index, hourly_index, forecast = await self._fetch_hourly(
+      lon=lon, lat=lat, timezone=timezone, temperature_unit=temperature_unit
+    )
 
-    sunset_date = datetime.datetime.strptime(forecast.daily.sunset[daily_index], self.format)
-    sunrise_date = datetime.datetime.strptime(forecast.daily.sunrise[daily_index], self.format)
+    sunset_date = datetime.datetime.strptime(forecast.daily.sunset[daily_index], self.format)  # type: ignore
+    sunrise_date = datetime.datetime.strptime(forecast.daily.sunrise[daily_index], self.format)  # type: ignore
 
-    current_humidity = forecast.hourly.relativehumidity_2m[hourly_index]
-    current_temperature = forecast.hourly.temperature_2m[hourly_index]
-    current_windspeed = forecast.hourly.windspeed_10m[hourly_index]
+    current_humidity = forecast.hourly.relativehumidity_2m[hourly_index]  # type: ignore
+    current_temperature = forecast.hourly.temperature_2m[hourly_index]  # type: ignore
+    current_windspeed = forecast.hourly.windspeed_10m[hourly_index]  # type: ignore
 
     return ForecastData(
-      temperature=f'{current_temperature}{forecast.hourly_units.temperature_2m}',
-      humidity=f'{current_humidity}{forecast.hourly_units.relativehumidity_2m}',
+      temperature=f'{current_temperature}{forecast.hourly_units.temperature_2m}',  # type: ignore
+      humidity=f'{current_humidity}{forecast.hourly_units.relativehumidity_2m}',  # type: ignore
       # wind_direction=forecast.current_weather.winddirection,
-      wind_speed=f'{current_windspeed} {forecast.hourly_units.windspeed_10m}',
+      wind_speed=f'{current_windspeed} {forecast.hourly_units.windspeed_10m}',  # type: ignore
       sunrise=str(sunrise_date.time()),
       sunset=str(sunset_date.time()),
     )

@@ -42,7 +42,7 @@ class GetLocationTool:
               properties={
                 'location': Tool.Function.Parameters.Property(type='string', description='The relevant location to handle'),
               },
-            ),
+            ),  # type: ignore
           )
         )
       ],

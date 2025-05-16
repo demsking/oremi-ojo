@@ -14,7 +14,6 @@
 # ==============================================================================
 from types import NoneType
 from typing import Any
-from typing import Literal
 
 from fastapi import FastAPI
 from fastapi import HTTPException
@@ -32,6 +31,7 @@ from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoForecastProvider import DailyForecastData
 from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
+from ..providers.OpenMeteoForecastProvider import TemperatureUnit
 
 
 def create_generative_endpoints(
@@ -126,26 +126,35 @@ def create_generative_endpoints(
       description='The timezone identifier for the location for which the response is generated.',
       examples=['Europe/Paris', 'Africa/Douala', 'Africa/Lagos', 'America/New_York', 'Asia/Tokyo'],
     ),
-    temperature_unit: Literal['celsius', 'fahrenheit'] = Query(
+    temperature_unit: TemperatureUnit = Query(
       'celsius',
       alias='temperature-unit',
-      description='',
+      description=(
+        'Unit of temperature to use when returning weather data. '
+        'This affects how temperature values are formatted in the response.'
+      ),
       examples=['celsius', 'fahrenheit'],
     ),
   ) -> Controller.Response[ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData | NoneType]:
     """
-    This endpoint generates responses related to weather, air quality, or pollen
-    count for a specific location based on user queries. It identifies the requested
-    service and location from the query and retrieves relevant data using appropriate
-    providers.
+    Generates a weather-related response based on the user's natural language
+    query. This may include current or forecasted weather, air quality, or
+    pollen levels for a specific location.
 
-    The query should describe the required information, such as weather forecasts,
-    air quality, or pollen data, and may include a specific location. If the location
-    is not explicitly provided, the system will attempt to infer it from the query.
+    The endpoint interprets user questions to determine both the requested
+    service (e.g., weather forecast, air quality, or pollen count) and the
+    location. If a location is not explicitly mentioned in the query, the
+    system attempts to infer it using internal heuristics.
 
-    The response includes the requested data, such as temperature, humidity, wind
-    speed, sunrise and sunset times, or air quality and pollen levels. If the service
-    or location cannot be determined, the endpoint returns an error.
+    Depending on the identified service, the appropriate external data provider
+    is queried to fetch relevant information. For weather and air quality
+    services, the endpoint also parses the query for any time-related
+    information such as "today" or "tomorrow" to determine whether to return
+    hourly or daily data.
+
+    The response contains detailed environmental data tailored to the user's
+    query. If the system fails to determine a valid location or service from
+    the input, an appropriate error message is returned.
     """
     service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone)
 
@@ -164,9 +173,13 @@ def create_generative_endpoints(
             provider = forecast.name
 
             if dateinfo.period == 'hourly':
-              data = await forecast.fetch(lat=location.lat, lon=location.lon, timezone=timezone)
+              data = await forecast.fetch(
+                lat=location.lat, lon=location.lon, timezone=timezone, temperature_unit=temperature_unit
+              )
             else:
-              data = await forecast.fetch_daily(lat=location.lat, lon=location.lon, dateinfo=dateinfo)
+              data = await forecast.fetch_daily(
+                lat=location.lat, lon=location.lon, dateinfo=dateinfo, temperature_unit=temperature_unit
+              )
           elif service == 'air-quality':
             provider = air_quality.name
             data = await air_quality.fetch(lat=location.lat, lon=location.lon)
@@ -202,15 +215,15 @@ def create_generative_endpoints(
   )
   async def generate_alerts_info(
     service: WeatherService = Query(
-      description='',
+      description='The type of weather-related service for which the alert is requested.',
       examples=['air-quality', 'weather', 'pollen'],
     ),
     lat: float = Query(
-      description='',
+      description='The latitude of the location for which the alert is generated.',
       examples=[48.8534951],
     ),
     lon: float = Query(
-      description='',
+      description='The longitude of the location for which the alert is generated.',
       examples=[2.3483915],
     ),
     timezone: str = Query(
@@ -218,14 +231,35 @@ def create_generative_endpoints(
       description='The timezone identifier for the location for which the response is generated.',
       examples=['Europe/Paris', 'Africa/Douala', 'Africa/Lagos', 'America/New_York', 'Asia/Tokyo'],
     ),
-    language: str = Query('en', description='', examples=['fr', 'en']),
-    temperature_unit: Literal['celsius', 'fahrenheit'] = Query(
+    language: str = Query(
+      'en',
+      description='Language code for the alert message content.',
+      examples=['fr', 'en'],
+    ),
+    temperature_unit: TemperatureUnit = Query(
       'celsius',
       alias='temperature-unit',
       description='Preferred unit for temperature values in alerts.',
       examples=['celsius', 'fahrenheit'],
     ),
   ) -> Controller.AlertResponse[ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData | NoneType]:
+    """
+    Generates environmental alerts for a specific location and service type.
+
+    This endpoint retrieves data from external providers to generate alert
+    messages based on weather, air quality, or pollen levels for a given
+    latitude and longitude. The query must specify the service type (e.g.,
+    weather, air-quality, pollen), and may include timezone, preferred
+    temperature unit, and language for the alert message.
+
+    For 'weather' and 'air-quality' services, the system retrieves daily data
+    for the current day using the configured timezone. If the service is
+    'pollen', it fetches the latest pollen index data.
+
+    The response includes the provider name, the service type, an alert
+    message crafted from the data, and the raw data used. This helps users
+    quickly assess environmental risks or conditions in their area.
+    """
     provider = None
     data = None
     dateinfo = None
@@ -238,9 +272,9 @@ def create_generative_endpoints(
         provider = forecast.name
 
         if dateinfo.period == 'hourly':
-          data = await forecast.fetch(lat=lat, lon=lon, timezone=timezone)
+          data = await forecast.fetch(lat=lat, lon=lon, timezone=timezone, temperature_unit=temperature_unit)
         else:
-          data = await forecast.fetch_daily(lat=lat, lon=lon, dateinfo=dateinfo)
+          data = await forecast.fetch_daily(lat=lat, lon=lon, dateinfo=dateinfo, temperature_unit=temperature_unit)
       elif service == 'air-quality':
         provider = air_quality.name
         data = await air_quality.fetch(lat=lat, lon=lon)

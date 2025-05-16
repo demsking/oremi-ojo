@@ -26,6 +26,7 @@ from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoAirQualityProvider import USAQIData
 from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
+from ..providers.OpenMeteoForecastProvider import TemperatureUnit
 
 
 ResponseData = TypeVar('ResponseData')
@@ -41,7 +42,7 @@ def create_forecast_endpoints(
   api: FastAPI,
   forecast: OpenMeteoForecastProvider,
   air_quality: OpenMeteoAirQualityProvider,
-  pollen=MeteoPollenProvider,
+  pollen: MeteoPollenProvider,
 ) -> None:
   @api.get(
     path='/forecast',
@@ -81,18 +82,28 @@ def create_forecast_endpoints(
       description='The timezone identifier for the location for which the weather forecast is requested.',
       examples=['Africa/Douala', 'Europe/Paris'],
     ),
+    temperature_unit: TemperatureUnit = Query(
+      'celsius',
+      alias='temperature-unit',
+      description='Preferred unit for temperature values in the forecast response.',
+      examples=['celsius', 'fahrenheit'],
+    ),
   ) -> Response[ForecastData]:
     """
-    Retrieve the weather forecast for a specific location.
+    Retrieve detailed weather forecast data for a specific location.
 
-    This endpoint provides detailed weather information for a given latitude
-    and longitude. The data includes temperature, humidity, wind direction,
-    wind speed, sunrise, and sunset times. Users can also specify a timezone
-    to adjust the forecast data accordingly.
+    This endpoint fetches current weather conditions including temperature,
+    humidity, wind speed, sunrise, and sunset times for the specified
+    latitude and longitude. Optionally, a timezone can be provided to ensure
+    time-based data (like sunrise/sunset) is returned appropriately for the
+    location. The temperature unit can also be specified to return values in
+    either Celsius or Fahrenheit.
+
+    It returns the name of the provider and the structured weather data.
     """
     return Response[ForecastData](
       provider=forecast.name,
-      data=await forecast.fetch(lat=lat, lon=lon, timezone=timezone),
+      data=await forecast.fetch(lat=lat, lon=lon, timezone=timezone, temperature_unit=temperature_unit),
     )
 
   @api.get(
@@ -121,12 +132,15 @@ def create_forecast_endpoints(
     ),
   ) -> Response[EAQIData | USAQIData]:
     """
-    Retrieve the air quality data for a specific location.
+    Retrieve current air quality data for a specific location.
 
-    This endpoint provides detailed air quality information for a given
-    latitude and longitude. The data includes metrics such as the Air Quality
-    Index (AQI), PM2.5, PM10, NO₂, and O₃ levels. Users can specify a timezone
-    to adjust the data accordingly.
+    This endpoint returns air quality metrics such as the Air Quality Index
+    (AQI), and potentially pollutant levels like PM2.5, PM10, NO₂, and O₃,
+    depending on the provider's capabilities. The data is localized to the
+    specified latitude and longitude.
+
+    The response includes the provider name and a structured representation
+    of the air quality data based on either EAQI or USAQI standards.
     """
     data = await air_quality.fetch(lat=lat, lon=lon)
 
@@ -164,12 +178,15 @@ def create_forecast_endpoints(
     ),
   ) -> Response[PollenData]:
     """
-    Retrieve the pollen data for a specific location.
+    Retrieve current pollen data for a specific location.
 
-    This endpoint provides information about pollen levels for a given
-    latitude and longitude. The data includes details about various pollen
-    types, such as Grass, Birch, and Olive, along with their respective
-    levels.
+    This endpoint provides information on the presence and concentration levels
+    of various airborne pollens, such as grass, oak, or urticaceae, at the given
+    geographic coordinates. It returns the overall pollen level and associated
+    health risk based on regional thresholds.
+
+    The response includes the data provider and a structured payload detailing
+    pollen types and risk assessment.
     """
     return Response[PollenData](
       provider=pollen.name,  # type: ignore

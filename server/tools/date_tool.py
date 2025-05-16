@@ -99,7 +99,7 @@ class GetDateTool:
     weather_tool_exec_next_week.name: 'weekly',
     weather_tool_exec_specific_date.name: 'daily',
     weather_tool_exec_unknown_date.name: 'daily',
-  }
+  }  # type: ignore
 
   def __init__(self, assistant: Assistant, logger: logging.Logger):
     self.logger = logger
