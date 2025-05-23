@@ -37,17 +37,9 @@ ENV PYTHONUNBUFFERED="1"
 ENV PYTHONDONTWRITEBYTECODE="1"
 
 ENV TZ=UTC
-
 ENV HOST="0.0.0.0"
-ENV PORT=1777
 
 ENV CACHE_DIR="/var/cache/oremi-weather-agent"
-
-ENV OLLAMA_MODEL="demsking/oremi:latest"
-ENV OLLAMA_BASEURL=
-
-ENV LOG_LEVEL="info"
-ENV LOG_FILE=
 
 # Install dependencies
 RUN apk update \
@@ -62,8 +54,8 @@ RUN chmod +x /opt/oremi-weather-agent/bin/* \
   && mkdir -p /var/cache/oremi-weather-agent
 
 # Copy application files
-COPY pyproject.toml LICENSE DOCUMENTATION.md /opt/oremi-weather-agent/
 COPY server/ /opt/oremi-weather-agent/server
+COPY pyproject.toml LICENSE DOCUMENTATION.md /opt/oremi-weather-agent/
 
 # Expose the port
 EXPOSE 1777
