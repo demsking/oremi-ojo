@@ -82,7 +82,7 @@ class HttpClient(hishel.AsyncCacheClient):
       except Exception:
         return False
 
-  async def request(
+  async def request(  # type: ignore
     self,
     method: str,
     url: str,

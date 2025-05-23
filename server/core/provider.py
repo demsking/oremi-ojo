@@ -14,10 +14,8 @@
 # ==============================================================================
 import logging
 from abc import ABC
-from abc import abstractmethod
 
 from .controller import Controller
-from .geo import Location
 
 
 class Provider(ABC):
@@ -25,7 +23,3 @@ class Provider(ABC):
     self.name = name
     self.logger = logger
     self.controller = controller
-
-  @abstractmethod
-  def fetch(self, *, location: Location):
-    raise NotImplementedError
