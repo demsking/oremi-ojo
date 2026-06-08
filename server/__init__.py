@@ -43,7 +43,7 @@ from .endpoints.forecast import create_forecast_endpoints
 from .endpoints.generative import create_generative_endpoints
 from .endpoints.geocode import create_geocode_endpoints
 from .endpoints.version import create_version_endpoints
-from .providers.MeteoPollenProvider import MeteoPollenProvider
+from .providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
 from .providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from .providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
 
@@ -155,7 +155,7 @@ controller = Controller(
 
 forecast = OpenMeteoForecastProvider(controller, logger)
 air_quality = OpenMeteoAirQualityProvider(controller, logger)
-pollen = MeteoPollenProvider(controller, logger)
+pollen = OpenMeteoPollenProvider(controller, logger)
 
 
 create_generative_endpoints(

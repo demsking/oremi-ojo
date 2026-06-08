@@ -13,46 +13,40 @@
 # limitations under the License.
 # ==============================================================================
 from enum import StrEnum
-from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import Field
 
 
 class PollenName(StrEnum):
-  OAK = 'oak'
-  OLIVE = 'olive'
-  GRASS = 'grass'
-  CUPRESSACEAE = 'cupressaceae'
-  PLANTAIN = 'plantain'
-  URTICACEAE = 'urticaceae'
-  ALDER = 'alder'
-  ASH = 'ash'
-  BEECH = 'beech'
-  BIRCH = 'birch'
-  HAZEL = 'hazel'
-  MUGWORT = 'mugwort'
-  PLANE_TREE = 'plane-tree'
-  POPLAR = 'poplar'
-  RAGWEED = 'ragweed'
-  SORREL = 'sorrel'
-  WILLOW = 'willow'
+  ALDER = 'alder'  # Aulne
+  BIRCH = 'birch'  # Bouleau
+  GRASS = 'grass'  # Graminées
+  MUGWORT = 'mugwort'  # Armoise
+  OLIVE = 'olive'  # Olivier
+  RAGWEED = 'ragweed'  # Ambroisie
 
 
-class PollenCategory(StrEnum):
-  TREE = 'tree'
-  GRASS = 'grass'
-  WEED = 'weed'
+class PollenSeverity(StrEnum):
+  ZERO = 'zero'
+  VERY_LOW = 'very_low'
+  LOW = 'low'
+  MODERATE = 'moderate'
+  HIGH = 'high'
+  VERY_HIGH = 'very_high'
+  EXTREMELY_HIGH = 'extremely_high'
 
 
-class DailyPollenForecast(BaseModel):
-  day: str = Field(..., description='Date of the forecast in YYYY-MM-DD format')
-  name: PollenName = Field(..., description='Name of the pollen type')
-  riskLevel: int = Field(..., description='Risk level associated with the pollen (e.g., 0-5)')
-  category: PollenCategory = Field(..., description='Category of the pollen')
+class PollenDetail(BaseModel):
+  level: float = Field(..., description='Measured pollen concentration in grains/m³')
+  severity: PollenSeverity = Field(..., description='SILAM severity classification for this pollen type')
 
 
 class PollenData(BaseModel):
   pollen_names: list[PollenName] | None = Field(..., description='List of pollen types detected')
-  level: int = Field(..., description='Aggregated pollen level')
-  risk: Literal['unknown', 'low', 'medium', 'high'] = Field(..., description='Categorized risk level based on pollen level')
+  units: str = Field(..., description='Units of measurement for pollen concentration (e.g., grains/m³)')
+  dominant_pollen: PollenName | None = Field(
+    default=None,
+    description='Pollen type with the highest current concentration.',
+  )
+  details: dict[PollenName, PollenDetail] = Field(default_factory=dict, description='Current pollen details by type.')

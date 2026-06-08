@@ -24,8 +24,8 @@ from ..core.controller import WeatherService
 from ..core.time import get_current_datetime
 from ..models.air_quality import EAQIData
 from ..models.air_quality import USAQIData
-from ..providers.MeteoPollenProvider import MeteoPollenProvider
-from ..providers.MeteoPollenProvider import PollenData
+from ..providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
+from ..providers.OpenMeteoPollenProvider import PollenData
 from ..providers.OpenMeteoAirQualityProvider import AirQualityData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoForecastProvider import DailyForecastData
@@ -40,7 +40,7 @@ def create_generative_endpoints(
   controller: Controller,
   forecast: OpenMeteoForecastProvider,
   air_quality: OpenMeteoAirQualityProvider,
-  pollen: MeteoPollenProvider,
+  pollen: OpenMeteoPollenProvider,
 ) -> None:
   example_response = Controller.Response[ForecastData | AirQualityData | PollenData].model_validate(
     {
@@ -188,7 +188,17 @@ def create_generative_endpoints(
           data = await pollen.fetch(lon=location.lon, lat=location.lat)
 
         if provider:
-          return await controller.generate_response(q, provider, location, service, data, temperature_unit, dateinfo)
+          locale = location.address.country_code if location.address else None
+          return await controller.generate_response(
+            q,
+            provider,
+            location,
+            service,
+            data,
+            temperature_unit,
+            dateinfo,
+            locale=locale,
+          )
 
       raise HTTPException(status_code=400, detail='No location found for user input')
     raise HTTPException(status_code=404, detail='Unable to identify service for user input')

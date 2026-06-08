@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 import logging
+import json
 from datetime import datetime
 from types import NoneType
 from typing import Any
+from typing import ClassVar
 from typing import Generic
 from typing import Literal
 from typing import TypeVar
@@ -25,6 +27,9 @@ from pydantic import Field
 
 from ..core.assistant import Assistant
 from ..core.geo import Location
+from ..models.pollen import PollenData
+from ..models.pollen import PollenName
+from ..models.pollen import PollenSeverity
 from ..tools.date_tool import GetDateTool
 from ..tools.date_tool import Period
 from ..tools.location_tool import GetLocationTool
@@ -35,6 +40,23 @@ WeatherService = Literal['air-quality', 'weather', 'pollen']
 
 
 class Controller:
+  POLLEN_NAME_FR: ClassVar[dict[PollenName, str]] = {
+    PollenName.ALDER: 'aulne',
+    PollenName.BIRCH: 'bouleau',
+    PollenName.GRASS: 'graminées',
+    PollenName.MUGWORT: 'armoise',
+    PollenName.OLIVE: 'olivier',
+    PollenName.RAGWEED: 'ambroisie',
+  }
+
+  POLLEN_SEVERITY_FR: ClassVar[dict[PollenSeverity, str]] = {
+    PollenSeverity.ZERO: 'nul',
+    PollenSeverity.LOW: 'faible',
+    PollenSeverity.MODERATE: 'modéré',
+    PollenSeverity.HIGH: 'élevé',
+    PollenSeverity.VERY_HIGH: 'très élevé',
+  }
+
   def __init__(self, assistant: Assistant, logger: logging.Logger) -> None:
     self.logger = logger
     self.assistant = assistant
@@ -110,6 +132,46 @@ class Controller:
       logger=logger,
     )
 
+  @staticmethod
+  def _is_french_locale(locale: str | None) -> bool:
+    return bool(locale and locale.lower().startswith('fr'))
+
+  def _localize_pollen_for_prompt(self, data: Any | None, *, locale: str | None) -> Any | None:
+    if not self._is_french_locale(locale) or not isinstance(data, PollenData):
+      return data
+
+    pollen_names = [Controller.POLLEN_NAME_FR.get(name, name.value) for name in data.pollen_names or []]
+    dominant_pollen = (
+      Controller.POLLEN_NAME_FR.get(data.dominant_pollen, data.dominant_pollen.value) if data.dominant_pollen else None
+    )
+
+    details = {
+      Controller.POLLEN_NAME_FR.get(name, name.value): {
+        'level': detail.level,
+        'severity': Controller.POLLEN_SEVERITY_FR.get(detail.severity, detail.severity.value),
+      }
+      for name, detail in data.details.items()
+    }
+
+    return {
+      'pollen_names': pollen_names or None,
+      'units': data.units,
+      'dominant_pollen': dominant_pollen,
+      'details': details,
+    }
+
+  def _format_prompt_data(self, data: Any | None, *, locale: str | None) -> str:
+    localized_data = self._localize_pollen_for_prompt(data, locale=locale)
+
+    if localized_data is None:
+      return 'Response: Unable to fetch data for the specified location'
+    if isinstance(localized_data, BaseModel):
+      return localized_data.model_dump_json()
+    if isinstance(localized_data, dict | list):
+      return json.dumps(localized_data, ensure_ascii=False)
+
+    return str(localized_data)
+
   async def generate_response(
     self,
     user_input: str,
@@ -119,13 +181,11 @@ class Controller:
     data: Any | None,
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
+    locale: str | None = None,
   ) -> 'Controller.Response[Any]':
-    prompt = (
-      f'User Request: {user_input}.\n'
-      f'Provider: {provider}.\n'
-      f'{data or "Response: Unable to fetch data for the specified location"}.\n'
-      f'Temperature Unit: {temperature_unit}\n'
-    )
+    prompt_data = self._format_prompt_data(data, locale=locale)
+
+    prompt = f'User Request: {user_input}.\nProvider: {provider}.\n{prompt_data}.\nTemperature Unit: {temperature_unit}\n'
 
     if dateinfo:
       if dateinfo.start == dateinfo.end:
@@ -134,6 +194,8 @@ class Controller:
         prompt += f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
 
     result = await self.response_agent.generate(prompt)
+
+    self.logger.debug(f'Generated response: {result.response if result else "No response"}')
 
     return Controller.Response(
       input=user_input,
@@ -153,11 +215,13 @@ class Controller:
     dateinfo: 'Controller.DateInfo | None',
     language: str,
   ) -> 'Controller.AlertResponse[Any]':
+    prompt_data = self._format_prompt_data(data, locale=language)
+
     prompt = (
       f'Provider: {provider}.\n'
-      f'{data or "Response: Unable to fetch data for the specified location"}.\n'
+      f'Provider Response: {prompt_data}.\n'
       f'Temperature Unit: {temperature_unit}\n'
-      f'User Language: {language}'
+      f'User Language: {language}\n'
     )
 
     if dateinfo:
@@ -167,6 +231,8 @@ class Controller:
         prompt += f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
 
     result = await self.alerts_response_agent.generate(prompt)
+
+    self.logger.debug(f'Generated alert response: {result.response if result else "No response"}')
 
     return Controller.AlertResponse(
       service=service,

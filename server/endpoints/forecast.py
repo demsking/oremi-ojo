@@ -19,8 +19,8 @@ from fastapi import FastAPI
 from fastapi import Query
 from pydantic import BaseModel
 
-from ..providers.MeteoPollenProvider import MeteoPollenProvider
-from ..providers.MeteoPollenProvider import PollenData
+from ..providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
+from ..providers.OpenMeteoPollenProvider import PollenData
 from ..providers.OpenMeteoAirQualityProvider import EAQIData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoAirQualityProvider import USAQIData
@@ -42,7 +42,7 @@ def create_forecast_endpoints(
   api: FastAPI,
   forecast: OpenMeteoForecastProvider,
   air_quality: OpenMeteoAirQualityProvider,
-  pollen: MeteoPollenProvider,
+  pollen: OpenMeteoPollenProvider,
 ) -> None:
   @api.get(
     path='/forecast',
@@ -158,8 +158,20 @@ def create_forecast_endpoints(
           'application/json': {
             'example': Response[PollenData].model_validate(
               {
-                'provider': 'Météo Pollen',
-                'data': {'pollen_names': ['grass', 'urticaceae', 'oak', 'sorrel'], 'level': 3, 'risk': 'high'},
+                'provider': 'Open-Météo',
+                'data': {
+                  'pollen_names': ['grass', 'ragweed'],
+                  'units': 'grains/m³',
+                  'dominant_pollen': 'grass',
+                  'details': {
+                    'alder': {'level': 0.0, 'severity': 'zero'},
+                    'birch': {'level': 0.0, 'severity': 'zero'},
+                    'grass': {'level': 23.4, 'severity': 'moderate'},
+                    'mugwort': {'level': 0.0, 'severity': 'zero'},
+                    'olive': {'level': 0.0, 'severity': 'zero'},
+                    'ragweed': {'level': 4.2, 'severity': 'moderate'},
+                  },
+                },
               }
             ),
           },
@@ -181,12 +193,10 @@ def create_forecast_endpoints(
     Retrieve current pollen data for a specific location.
 
     This endpoint provides information on the presence and concentration levels
-    of various airborne pollens, such as grass, oak, or urticaceae, at the given
-    geographic coordinates. It returns the overall pollen level and associated
-    health risk based on regional thresholds.
+    of various airborne pollens at the given geographic coordinates.
 
     The response includes the data provider and a structured payload detailing
-    pollen types and risk assessment.
+    pollen types, units, and per-pollen concentration plus SILAM severity.
     """
     return Response[PollenData](
       provider=pollen.name,  # type: ignore
