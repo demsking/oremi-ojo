@@ -1,4 +1,4 @@
-FROM python:3.11-alpine3.21
+FROM python:3.12-alpine3.21
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Set environment variables
@@ -20,5 +20,7 @@ RUN adduser -D -h /home/devuser -s /bin/sh devuser \
 USER devuser
 WORKDIR /workspaces
 ENV EDITOR=vim
+
+RUN echo 'alias ll="ls -lha"' >> ~/.bashrc
 
 CMD ["sh"]

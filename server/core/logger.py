@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 import logging
-import os
 
 from oremi_core.logger import Logger
+
+from .config import LOG_FILE
+from .config import LOG_LEVEL
 
 from .package import APP_NAME
 
@@ -29,8 +31,7 @@ LOG_LEVEL_MAP = {
 }
 
 # Get log level from environment variable or default to 'INFO'
-LOG_LEVEL_STR = os.environ.get('LOG_LEVEL', 'INFO').upper()
-log_file = os.environ.get('LOG_FILE')
+LOG_LEVEL_STR = LOG_LEVEL.upper()
 
 
 def create_logger(suffix: str = '') -> logging.Logger:
@@ -43,4 +44,4 @@ def create_logger(suffix: str = '') -> logging.Logger:
   # Set global log level and create logger
   Logger.set_global_level(log_level)  # type: ignore
 
-  return Logger.create(name, filename=log_file, level=log_level)
+  return Logger.create(name, filename=LOG_FILE, level=log_level)

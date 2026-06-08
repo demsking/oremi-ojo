@@ -56,8 +56,8 @@ fix:
 ## Dependencies
 install:
 	rm -rf .venv
-	uv venv
-	uv sync
+	uv venv --clear
+	uv sync --with extras.python
 
 outdated: install
 	uv pip list --outdated

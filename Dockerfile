@@ -1,6 +1,6 @@
 #
 ## Stage 1: Builder
-FROM python:3.11-alpine3.21 AS builder
+FROM python:3.12-alpine3.21 AS builder
 
 ENV UV_LINK_MODE=copy
 
@@ -26,13 +26,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 #
 ## Stage 2: Final
-FROM python:3.11-alpine3.21
+FROM python:3.12-alpine3.21
 
 # Set the shell to /bin/ash and enable pipefail
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 ENV PATH="/opt/oremi-weather-agent/bin:$PATH"
-ENV PYTHONPATH="/opt/oremi-weather-agent:/opt/oremi-weather-agent/.venv/lib/python3.11/site-packages"
+ENV PYTHONPATH="/opt/oremi-weather-agent:/opt/oremi-weather-agent/.venv/lib/python3.12/site-packages"
 ENV PYTHONUNBUFFERED="1"
 ENV PYTHONDONTWRITEBYTECODE="1"
 
