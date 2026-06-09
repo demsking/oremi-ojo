@@ -6,6 +6,8 @@ weather and geocoding data.
 
 ![Oremi Weather Agent Logo](logo.jpg)
 
+Release notes are available in [CHANGELOG.md](https://gitlab.com/demsking/oremi-weather-agent/blob/main/CHANGELOG.md).
+
 ## Features
 
 - **Weather Forecasts**: Retrieve detailed weather information, including

@@ -15,6 +15,8 @@ weather and geocoding data.
 Find the Oremi Weather Agent deployment and API documentation at
 [https://demsking.gitlab.io/oremi-weather-agent](https://demsking.gitlab.io/oremi-weather-agent).
 
+Release notes are available in [CHANGELOG.md](CHANGELOG.md).
+
 ## Features
 
 - **Weather Forecasts**: Retrieve detailed weather information, including
