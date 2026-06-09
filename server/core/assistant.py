@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from collections.abc import Sequence
 import logging
 
 import httpx
@@ -122,7 +123,7 @@ class ToolsAgent:
     self,
     input: str,
     tools: list[Tool] | None = None,
-  ) -> Message.ToolCall.Function | None:
+  ) -> Sequence[Message.ToolCall] | None:
     messages: list[Message] = []
 
     if self.system:
@@ -141,7 +142,6 @@ class ToolsAgent:
     )
 
     if response.message.tool_calls:
-      for tool in response.message.tool_calls:
-        return tool.function
+      return response.message.tool_calls
 
     return None

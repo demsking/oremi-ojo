@@ -1,4 +1,4 @@
-# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2024-2026 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,24 +32,26 @@ def create_agent_endpoints(
       200: {
         'content': {
           'application/json': {
-            'example': Location.model_validate(
-              {
-                'type': 'administrative',
-                'name': 'Paris',
-                'boundingbox': [48.8155755, 48.902156, 2.224122, 2.4697602],
-                'lat': 48.8588897,
-                'lon': 2.3200410217200766,
-                'addresstype': 'suburb',
-                'display_name': 'Paris, Ile-de-France, Metropolitan France, France',
-                'address': {
-                  'country': 'France',
-                  'country_code': 'fr',
-                  'region': 'Metropolitan France',
-                  'state': 'Ile-de-France',
-                  'city': 'Paris',
-                },
-              }
-            ),
+            'example': [
+              Location.model_validate(
+                {
+                  'type': 'administrative',
+                  'name': 'Paris',
+                  'boundingbox': [48.8155755, 48.902156, 2.224122, 2.4697602],
+                  'lat': 48.8588897,
+                  'lon': 2.3200410217200766,
+                  'addresstype': 'suburb',
+                  'display_name': 'Paris, Ile-de-France, Metropolitan France, France',
+                  'address': {
+                    'country': 'France',
+                    'country_code': 'fr',
+                    'region': 'Metropolitan France',
+                    'state': 'Ile-de-France',
+                    'city': 'Paris',
+                  },
+                }
+              )
+            ],
           },
         },
       },
@@ -61,30 +63,40 @@ def create_agent_endpoints(
       },
     },
   )
-  async def extract_location(
+  async def extract_locations(
     q: str = Query(
       description='The user question to generate a response from.',
       examples=[
         'What is the weather in Paris today?',
         'Quel temps fait-il à Douala ?',
+        'Compare la meteo entre Paris et Lyon',
+        'Quel temps fait-il a Marseille et Nice demain ?',
         'What is the air quality in Yaoundé today?',
         "Quelle est l'air qualité à Laos aujourd'hui ?",
         'What is the pollen count in Ouaguadougou today?',
       ],
     ),
-  ) -> Location:
+    limit: int = Query(
+      default=3,
+      ge=1,
+      le=10,
+      description='Maximum number of locations to return.',
+      examples=[1, 1, 3, 4, 5],
+    ),
+  ) -> list[Location]:
     """
-    This endpoint extracts the location from a user query. It analyzes the input
-    to identify the geographical location mentioned and returns detailed location
-    information, including latitude, longitude, and address components.
+    Extract one or more locations from a free-form user query.
 
-    The query may describe a specific location or provide context that helps
-    infer the location. If no location can be identified from the input, the
-    endpoint returns an error.
+    The endpoint analyzes the request text, detects explicit place mentions,
+    geocodes them, and returns structured location objects (coordinates,
+    display name, and address details). Use the `limit` parameter to control
+    how many matches are returned.
+
+    If no location can be inferred from the input, the endpoint returns an error.
     """
-    location = await controller.location_agent.get_user_input_location(q)
+    locations = await controller.location_agent.get_user_input_locations(q, limit=limit)
 
-    if location:
-      return location
+    if locations:
+      return locations
 
     raise HTTPException(status_code=404, detail='No location found for user input')

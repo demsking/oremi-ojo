@@ -1,4 +1,4 @@
-# Copyright 2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2025-2026 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,15 +48,42 @@ class GetLocationTool:
       ],
     )
 
-  async def get_user_input_location(self, user_input: str) -> Location | None:
-    result = await self.agent.query(input=f'User Request: {user_input}.')
+  async def get_user_input_locations(self, user_input: str, limit: int | None = None) -> list[Location]:
+    results = await self.agent.query(input=f'User Request: {user_input}.')
+    max_locations = limit or 10
 
-    if result:
-      self.logger.debug(f'Extracted location from user input: {result.arguments}')
+    if not results:
+      return []
 
-      if 'location' in result.arguments:
-        place: str = result.arguments['location']
+    places: list[str] = []
 
-        return await Geocode.find(place)
+    for result in results:
+      arguments = result.function.arguments
+      self.logger.debug(f'Extracted location call from user input: {arguments}')
 
-    return None
+      place = arguments.get('location') if arguments else None
+
+      if isinstance(place, str) and place.strip():
+        places.append(place.strip())
+
+    unique_places = list(dict.fromkeys(places))
+    locations: list[Location] = []
+    seen: set[tuple[float, float]] = set()
+
+    for place in unique_places:
+      # One best geocoding result per extracted place keeps responses focused.
+      candidates = await Geocode.search(place, limit=1)
+
+      for candidate in candidates:
+        key = (candidate.lat, candidate.lon)
+
+        if key in seen:
+          continue
+
+        seen.add(key)
+        locations.append(candidate)
+
+        if len(locations) >= max_locations:
+          return locations
+
+    return locations

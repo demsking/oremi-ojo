@@ -1,4 +1,4 @@
-# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2024-2026 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,18 +20,45 @@ from fastapi import HTTPException
 from fastapi import Query
 
 from ..core.controller import Controller
-from ..core.controller import WeatherService
+from ..core.controller import ResponseData
+from ..core.controller import ResponseDataModel
 from ..core.time import get_current_datetime
-from ..models.air_quality import EAQIData
-from ..models.air_quality import USAQIData
-from ..providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
-from ..providers.OpenMeteoPollenProvider import PollenData
 from ..providers.OpenMeteoAirQualityProvider import AirQualityData
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
-from ..providers.OpenMeteoForecastProvider import DailyForecastData
 from ..providers.OpenMeteoForecastProvider import ForecastData
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
 from ..providers.OpenMeteoForecastProvider import TemperatureUnit
+from ..providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
+from ..providers.OpenMeteoPollenProvider import PollenData
+from ..tools.service_tool import GetServiceTool
+
+
+def _dedupe_locations(locations: list[Any]) -> list[Any]:
+  seen: set[tuple[float, float]] = set()
+  deduped: list[Any] = []
+
+  for location in locations:
+    key = (location.lat, location.lon)
+
+    if key in seen:
+      continue
+
+    seen.add(key)
+    deduped.append(location)
+
+  return deduped
+
+
+def _dedupe_services(services: list[GetServiceTool.Service]) -> list[GetServiceTool.Service]:
+  seen: set[GetServiceTool.Service] = set()
+  deduped: list[GetServiceTool.Service] = []
+
+  for service in services:
+    if service not in seen:
+      seen.add(service)
+      deduped.append(service)
+
+  return deduped
 
 
 def create_generative_endpoints(
@@ -45,9 +72,10 @@ def create_generative_endpoints(
   example_response = Controller.Response[ForecastData | AirQualityData | PollenData].model_validate(
     {
       'provider': 'Open-Météo',
-      'service': 'weather',
+      'services': ['weather'],
       'input': "Quel temps fait à Paris aujourd'hui ?",
       'message': "Il fait 12 degrés Celsius à Paris aujourd'hui, avec une humideur de 37 pour cent et un vent doux à 4,3 kilomètres par heure. Il commence à se lever à 7h13 et se couche à 20h31. C'est un excellent temps pour sortir et profiter du soleil.",
+      'message_language': 'fr',
       'data': {
         'temperature': '12.3°C',
         'humidity': '37%',
@@ -91,7 +119,7 @@ def create_generative_endpoints(
           'application/json': {'example': {'detail': 'No location found for user input'}},
         },
       },
-      404: {
+      460: {
         'description': 'Unable to identify service for user input',
         'content': {
           'application/json': {'example': {'detail': 'Unable to identify service for user input'}},
@@ -105,7 +133,10 @@ def create_generative_endpoints(
       examples=[
         'What is the weather in Paris today?',
         'Quel temps fait-il à Paris ?',
+        'Quel temps fait-il a Villiers-sur-Marne et Paris ?',
+        'Quel temps fait-il actuellement a Paris ? Y a-t-il du pollen a Villiers-sur-Marne ?',
         'What is the air quality in Paris today?',
+        'Compare air quality in Paris and Lyon today',
         "Quelle est l'air qualité à Paris aujourd'hui ?",
         'What is the pollen count in Paris today?',
         "Quel est le niveau de pollens à Paris aujourd'hui ?",
@@ -135,65 +166,111 @@ def create_generative_endpoints(
       ),
       examples=['celsius', 'fahrenheit'],
     ),
-  ) -> Controller.Response[ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData | NoneType]:
+  ) -> Controller.Response[ResponseDataModel | dict[str, ResponseDataModel]]:
     """
-    Generates a weather-related response based on the user's natural language
-    query. This may include current or forecasted weather, air quality, or
-    pollen levels for a specific location.
+    Generate a natural-language climate response from free-form user input.
 
-    The endpoint interprets user questions to determine both the requested
-    service (e.g., weather forecast, air quality, or pollen count) and the
-    location. If a location is not explicitly mentioned in the query, the
-    system attempts to infer it using internal heuristics.
+    The endpoint can resolve multiple requested services (weather, air quality,
+    pollen) and multiple mentioned locations in one request. With one location,
+    the payload is a service-to-data map. With multiple locations, the payload
+    becomes a location-to-service-data map.
 
-    Depending on the identified service, the appropriate external data provider
-    is queried to fetch relevant information. For weather and air quality
-    services, the endpoint also parses the query for any time-related
-    information such as "today" or "tomorrow" to determine whether to return
-    hourly or daily data.
-
-    The response contains detailed environmental data tailored to the user's
-    query. If the system fails to determine a valid location or service from
-    the input, an appropriate error message is returned.
+    If no service can be identified, it returns a service-identification error.
+    If no location can be resolved, it returns a location error.
     """
-    service, location = await controller.service_agent.get_user_input_service(q, timezone=timezone)
+    calls = await controller.service_agent.get_user_input_services(q, timezone=timezone)
 
-    if service:
-      location = location or await controller.location_agent.get_user_input_location(q)
+    if calls:
+      requested_services = _dedupe_services([service for service, _ in calls if service])
+      locations_from_calls = [call_location for _, call_location in calls if call_location]
+      locations_from_text = await controller.location_agent.get_user_input_locations(q, limit=5)
+      locations = _dedupe_locations(locations_from_calls + locations_from_text)
 
-      if location:
-        provider = None
-        data = None
+      if locations:
+        providers: set[str] = set()
+        data: ResponseDataModel | dict[str, ResponseDataModel]
         dateinfo = None
 
-        if service == 'weather' or service == 'air-quality':
+        if 'weather' in requested_services or 'air-quality' in requested_services:
           dateinfo = await controller.get_date(q, timezone=timezone)
 
-          if service == 'weather':
-            provider = forecast.name
+        if len(locations) == 1:
+          location = locations[0]
+          single_location_data: ResponseDataModel = {}
 
-            if dateinfo.period == 'hourly':
-              data = await forecast.fetch(
-                lat=location.lat, lon=location.lon, timezone=timezone, temperature_unit=temperature_unit
+          if 'weather' in requested_services:
+            providers.add(forecast.name)
+
+            if dateinfo and dateinfo.period == 'hourly':
+              single_location_data['weather'] = await forecast.fetch(
+                lat=location.lat,
+                lon=location.lon,
+                timezone=timezone,
+                temperature_unit=temperature_unit,
               )
             else:
-              data = await forecast.fetch_daily(
-                lat=location.lat, lon=location.lon, dateinfo=dateinfo, temperature_unit=temperature_unit
+              single_location_data['weather'] = await forecast.fetch_daily(
+                lat=location.lat,
+                lon=location.lon,
+                dateinfo=dateinfo,  # type: ignore[arg-type]
+                temperature_unit=temperature_unit,
               )
-          elif service == 'air-quality':
-            provider = air_quality.name
-            data = await air_quality.fetch(lat=location.lat, lon=location.lon)
-        elif service == 'pollen':
-          provider = pollen.name
-          data = await pollen.fetch(lon=location.lon, lat=location.lat)
 
-        if provider:
-          locale = location.address.country_code if location.address else None
+          if 'air-quality' in requested_services:
+            providers.add(air_quality.name)
+            single_location_data['air-quality'] = await air_quality.fetch(lat=location.lat, lon=location.lon)
+
+          if 'pollen' in requested_services:
+            providers.add(pollen.name)
+            single_location_data['pollen'] = await pollen.fetch(lon=location.lon, lat=location.lat)
+
+          data = single_location_data
+        else:
+          multi_location_data: dict[str, ResponseDataModel] = {}
+
+          for location in locations:
+            location_data: ResponseDataModel = {}
+
+            if 'weather' in requested_services:
+              providers.add(forecast.name)
+
+              if dateinfo and dateinfo.period == 'hourly':
+                location_data['weather'] = await forecast.fetch(
+                  lat=location.lat,
+                  lon=location.lon,
+                  timezone=timezone,
+                  temperature_unit=temperature_unit,
+                )
+              else:
+                location_data['weather'] = await forecast.fetch_daily(
+                  lat=location.lat,
+                  lon=location.lon,
+                  dateinfo=dateinfo,  # type: ignore[arg-type]
+                  temperature_unit=temperature_unit,
+                )
+
+            if 'air-quality' in requested_services:
+              providers.add(air_quality.name)
+              location_data['air-quality'] = await air_quality.fetch(lat=location.lat, lon=location.lon)
+
+            if 'pollen' in requested_services:
+              providers.add(pollen.name)
+              location_data['pollen'] = await pollen.fetch(lon=location.lon, lat=location.lat)
+
+            multi_location_data[location.display_name] = location_data
+
+          data = multi_location_data
+
+        if providers and requested_services:
+          primary_location = locations[0]
+          locale = primary_location.address.country_code if primary_location.address else None
+          provider = ', '.join(sorted(providers))
+
           return await controller.generate_response(
             q,
             provider,
-            location,
-            service,
+            primary_location,
+            requested_services,
             data,
             temperature_unit,
             dateinfo,
@@ -201,7 +278,7 @@ def create_generative_endpoints(
           )
 
       raise HTTPException(status_code=400, detail='No location found for user input')
-    raise HTTPException(status_code=404, detail='Unable to identify service for user input')
+    raise HTTPException(status_code=460, detail='Unable to identify service for user input')
 
   @api.get(
     '/agent/alerts',
@@ -221,10 +298,16 @@ def create_generative_endpoints(
           },
         },
       },
+      503: {
+        'description': 'Unable to identify provider for requested service',
+        'content': {
+          'application/json': {'example': {'detail': 'Unable to identify provider for requested service'}},
+        },
+      },
     },
   )
   async def generate_alerts_info(
-    service: WeatherService = Query(
+    service: GetServiceTool.Service = Query(
       description='The type of weather-related service for which the alert is requested.',
       examples=['air-quality', 'weather', 'pollen'],
     ),
@@ -252,23 +335,16 @@ def create_generative_endpoints(
       description='Preferred unit for temperature values in alerts.',
       examples=['celsius', 'fahrenheit'],
     ),
-  ) -> Controller.AlertResponse[ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData | NoneType]:
+  ) -> Controller.AlertResponse[ResponseData | NoneType]:
     """
-    Generates environmental alerts for a specific location and service type.
+    Generate alert-focused responses for one service at one location.
 
-    This endpoint retrieves data from external providers to generate alert
-    messages based on weather, air quality, or pollen levels for a given
-    latitude and longitude. The query must specify the service type (e.g.,
-    weather, air-quality, pollen), and may include timezone, preferred
-    temperature unit, and language for the alert message.
+    The endpoint fetches weather, air-quality, or pollen data for the provided
+    coordinates and asks the alert agent to produce a concise warning message
+    in the requested language.
 
-    For 'weather' and 'air-quality' services, the system retrieves daily data
-    for the current day using the configured timezone. If the service is
-    'pollen', it fetches the latest pollen index data.
-
-    The response includes the provider name, the service type, an alert
-    message crafted from the data, and the raw data used. This helps users
-    quickly assess environmental risks or conditions in their area.
+    It returns provider metadata, service name, generated alert message, and
+    the structured source data used by the LLM.
     """
     provider = None
     data = None
@@ -291,5 +367,8 @@ def create_generative_endpoints(
     elif service == 'pollen':
       provider = pollen.name
       data = await pollen.fetch(lon=lon, lat=lat)
+
+    if not provider:
+      raise HTTPException(status_code=503, detail='Unable to identify provider for requested service')
 
     return await controller.generate_alert_response(provider, service, data, temperature_unit, dateinfo, language)

@@ -1,4 +1,4 @@
-# Copyright 2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2025-2026 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 import logging
 from typing import Literal
 
+from ollama import Message
 from ollama import Tool
 
 from ..core.assistant import Assistant
@@ -23,6 +24,8 @@ from ..core.geo import Location
 
 
 class GetServiceTool:
+  Service = Literal['weather', 'air-quality', 'pollen']
+
   handle_forecast_request = Tool.Function(
     name='get_weather',
     description='Handle a forecast request with location information.',
@@ -79,24 +82,39 @@ class GetServiceTool:
       ],
     )
 
-  async def get_user_input_service(
-    self, user_input: str, *, timezone: str, context: str = ''
-  ) -> tuple[Literal['weather', 'air-quality', 'pollen'] | None, Location | None]:
-    result = await self.agent.query(input=f'User: {user_input}.\nTimezone: {timezone}.\n{context}')
+  async def get_user_input_service(self, result: Message.ToolCall.Function) -> tuple[Service | None, Location | None]:
+    self.logger.debug(f'Extracted service from user input: {result}')
 
-    if result:
-      self.logger.debug(f'Extracted service from user input: {result}')
+    place = result.arguments.get('location', None)
+    location = await Geocode.find(place) if place and result.name != GetServiceTool.handle_unhandled_request.name else None
 
-      place = result.arguments.get('location', None)
-      location = await Geocode.find(place) if place and result.name != GetServiceTool.handle_unhandled_request.name else None
+    if result.name == GetServiceTool.handle_forecast_request.name:
+      return 'weather', location
 
-      if result.name == GetServiceTool.handle_forecast_request.name:
-        return 'weather', location
+    if result.name == GetServiceTool.handle_air_quality_request.name:
+      return 'air-quality', location
 
-      if result.name == GetServiceTool.handle_air_quality_request.name:
-        return 'air-quality', location
-
-      if result.name == GetServiceTool.handle_pollen_request.name:
-        return 'pollen', location
+    if result.name == GetServiceTool.handle_pollen_request.name:
+      return 'pollen', location
 
     return None, None
+
+  async def get_user_input_services(
+    self, user_input: str, *, timezone: str, context: str = ''
+  ) -> list[tuple[Service | None, Location | None]]:
+    results = await self.agent.query(input=f'User: {user_input}.\nTimezone: {timezone}.\n{context}')
+
+    if results:
+      self.logger.debug(f'Found {len(results)} tool calls in the response.')
+
+      services: list[tuple[GetServiceTool.Service | None, Location | None]] = []
+
+      for tool_call in results:
+        service, location = await self.get_user_input_service(tool_call.function)
+
+        if service:
+          services.append((service, location))
+
+      return services
+
+    return []

@@ -1,4 +1,4 @@
-# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2024-2026 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import logging
 import json
+import logging
 from datetime import datetime
 from types import NoneType
 from typing import Any
 from typing import ClassVar
 from typing import Generic
-from typing import Literal
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -27,6 +26,10 @@ from pydantic import Field
 
 from ..core.assistant import Assistant
 from ..core.geo import Location
+from ..models.air_quality import EAQIData
+from ..models.air_quality import USAQIData
+from ..models.forecast import DailyForecastData
+from ..models.forecast import ForecastData
 from ..models.pollen import PollenData
 from ..models.pollen import PollenName
 from ..models.pollen import PollenSeverity
@@ -35,11 +38,16 @@ from ..tools.date_tool import Period
 from ..tools.location_tool import GetLocationTool
 from ..tools.service_tool import GetServiceTool
 
-ResponseData = TypeVar('ResponseData', bound=BaseModel | NoneType)
-WeatherService = Literal['air-quality', 'weather', 'pollen']
+ResponseData = ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData
+ResponseDataModel = dict[GetServiceTool.Service, ResponseData | NoneType]
+MultiLocationResponseDataModel = dict[str, ResponseDataModel]
+ResponsePayloadModel = ResponseDataModel | MultiLocationResponseDataModel
+ResponseDataType = TypeVar('ResponseDataType', bound=BaseModel | ResponsePayloadModel | NoneType)
 
 
 class Controller:
+  SERVICE_NAMES: ClassVar[set[str]] = {'weather', 'air-quality', 'pollen'}
+
   POLLEN_NAME_FR: ClassVar[dict[PollenName, str]] = {
     PollenName.ALDER: 'aulne',
     PollenName.BIRCH: 'bouleau',
@@ -136,7 +144,7 @@ class Controller:
   def _is_french_locale(locale: str | None) -> bool:
     return bool(locale and locale.lower().startswith('fr'))
 
-  def _localize_pollen_for_prompt(self, data: Any | None, *, locale: str | None) -> Any | None:
+  def _localize_pollen_for_prompt(self, data: PollenData | None, *, locale: str | None) -> dict[str, Any] | PollenData | None:
     if not self._is_french_locale(locale) or not isinstance(data, PollenData):
       return data
 
@@ -160,32 +168,77 @@ class Controller:
       'details': details,
     }
 
-  def _format_prompt_data(self, data: Any | None, *, locale: str | None) -> str:
-    localized_data = self._localize_pollen_for_prompt(data, locale=locale)
+  def _format_service_data_map(self, data: dict[str, ResponseData | NoneType], *, locale: str | None) -> dict[str, Any]:
+    return {
+      service: (
+        self._localize_pollen_for_prompt(service_data, locale=locale)
+        if service == 'pollen' and isinstance(service_data, PollenData)
+        else (service_data.model_dump() if isinstance(service_data, BaseModel) else service_data)
+      )
+      for service, service_data in data.items()
+    }
 
-    if localized_data is None:
+  def _format_prompt_data(self, data: ResponsePayloadModel | ResponseData | NoneType, *, locale: str | None) -> str:
+    if data is None:
       return 'Response: Unable to fetch data for the specified location'
-    if isinstance(localized_data, BaseModel):
-      return localized_data.model_dump_json()
-    if isinstance(localized_data, dict | list):
+
+    if isinstance(data, PollenData):
+      localized_data = self._localize_pollen_for_prompt(data, locale=locale)
       return json.dumps(localized_data, ensure_ascii=False)
 
-    return str(localized_data)
+    if isinstance(data, BaseModel):
+      return data.model_dump_json()
+
+    if isinstance(data, dict):
+      keys = list(data.keys())
+
+      if keys and all(key in Controller.SERVICE_NAMES for key in keys):
+        service_data_map: dict[str, ResponseData | NoneType] = {
+          str(service): service_data
+          for service, service_data in data.items()
+          if not isinstance(service_data, dict)
+        }
+        return json.dumps(self._format_service_data_map(service_data_map, locale=locale), ensure_ascii=False)
+
+      payload_by_location: dict[str, Any] = {}
+
+      for location_name, location_data in data.items():
+        if isinstance(location_data, dict):
+          location_service_map: dict[str, ResponseData | NoneType] = {
+            str(service): service_data
+            for service, service_data in location_data.items()
+            if not isinstance(service_data, dict)
+          }
+          payload_by_location[location_name] = self._format_service_data_map(location_service_map, locale=locale)
+        else:
+          payload_by_location[location_name] = location_data
+
+      return json.dumps(payload_by_location, ensure_ascii=False)
+
+    return str(data)
 
   async def generate_response(
     self,
     user_input: str,
     provider: str,
     location: Location,
-    service: WeatherService,
-    data: Any | None,
+    services: list[GetServiceTool.Service],
+    data: ResponsePayloadModel,
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
     locale: str | None = None,
-  ) -> 'Controller.Response[Any]':
+  ) -> 'Controller.Response[ResponsePayloadModel]':
     prompt_data = self._format_prompt_data(data, locale=locale)
+    message_language = locale if locale else 'en'
 
-    prompt = f'User Request: {user_input}.\nProvider: {provider}.\n{prompt_data}.\nTemperature Unit: {temperature_unit}\n'
+    prompt = (
+      f'User Request: {user_input}.\n'
+      f'Provider: {provider}.\n'
+      f'Services: {", ".join(services)}.\n'
+      f'{prompt_data}.\n'
+      f'Temperature Unit: {temperature_unit}\n'
+      f'User Language: {message_language}\n'
+    )
 
     if dateinfo:
       if dateinfo.start == dateinfo.end:
@@ -199,9 +252,10 @@ class Controller:
 
     return Controller.Response(
       input=user_input,
-      service=service,
+      services=services,
       provider=provider,
       message=result.response if result else 'No response',
+      message_language=message_language,
       location=location,
       data=data,
     )
@@ -209,12 +263,12 @@ class Controller:
   async def generate_alert_response(
     self,
     provider: str,
-    service: WeatherService,
-    data: BaseModel | None,
+    service: GetServiceTool.Service,
+    data: ResponseData | NoneType,
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
     language: str,
-  ) -> 'Controller.AlertResponse[Any]':
+  ) -> 'Controller.AlertResponse[ResponseData | NoneType]':
     prompt_data = self._format_prompt_data(data, locale=language)
 
     prompt = (
@@ -266,16 +320,17 @@ class Controller:
     def end_date(self) -> str:
       return self.end.date().isoformat()
 
-  class Response(BaseModel, Generic[ResponseData]):
+  class Response(BaseModel, Generic[ResponseDataType]):
     provider: str = Field(..., description='Name of the data provider')
     input: str = Field(..., description='User input that triggered the response')
-    service: WeatherService = Field(..., description='Service used for generating the response')
+    services: list[GetServiceTool.Service] = Field(..., description='List of services used for generating the response')
     message: str = Field(..., description='Message or explanation related to the response')
-    data: ResponseData | None = Field(..., description='Structured data returned by the provider')
+    message_language: str = Field(..., description='Language code used for the generated message')
+    data: ResponseDataType | None = Field(..., description='Structured data returned by the provider')
     location: Location = Field(..., description='Location information related to the response')
 
-  class AlertResponse(BaseModel, Generic[ResponseData]):
+  class AlertResponse(BaseModel, Generic[ResponseDataType]):
     provider: str = Field(..., description='Name of the data provider')
-    service: WeatherService = Field(..., description='Service used for generating the response')
+    service: GetServiceTool.Service = Field(..., description='Service used for generating the response')
     message: str = Field(..., description='Message or explanation related to the response')
-    data: ResponseData | None = Field(..., description='Structured data returned by the provider')
+    data: ResponseDataType | None = Field(..., description='Structured data returned by the provider')

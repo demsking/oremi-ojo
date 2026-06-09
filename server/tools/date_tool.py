@@ -1,4 +1,4 @@
-# Copyright 2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2025-2026 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -117,9 +117,10 @@ class GetDateTool:
   async def get_date(self, user_input: str, *, timezone: str) -> tuple[Tool.Function, datetime.datetime, datetime.datetime]:
     current_time = get_current_datetime(timezone)
     current_time_zero = get_current_datetime(timezone).replace(minute=0, second=0, microsecond=0)
-    result = await self.agent.query(input=(f'User Request: {user_input}.\nCurrent date and time: {current_time}.'))
+    results = await self.agent.query(input=(f'User Request: {user_input}.\nCurrent date and time: {current_time}.'))
 
-    if result:
+    if results:
+      result = results[0].function
       self.logger.debug(f'Extracted date from user input: {result.arguments}')
 
       if result.name == weather_tool_exec_current.name:
