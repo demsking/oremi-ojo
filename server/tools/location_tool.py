@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import asyncio
 import logging
 
 from ollama import Tool
@@ -70,10 +71,10 @@ class GetLocationTool:
     locations: list[Location] = []
     seen: set[tuple[float, float]] = set()
 
-    for place in unique_places:
-      # One best geocoding result per extracted place keeps responses focused.
-      candidates = await Geocode.search(place, limit=1)
+    # Run geocoding for each extracted place in parallel.
+    candidate_lists = await asyncio.gather(*(Geocode.search(place, limit=1) for place in unique_places))
 
+    for candidates in candidate_lists:
       for candidate in candidates:
         key = (candidate.lat, candidate.lon)
 

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import asyncio
 from types import NoneType
 from typing import Any
 
@@ -178,12 +179,14 @@ def create_generative_endpoints(
     If no service can be identified, it returns a service-identification error.
     If no location can be resolved, it returns a location error.
     """
-    calls = await controller.service_agent.get_user_input_services(q, timezone=timezone)
+    calls, locations_from_text = await asyncio.gather(
+      controller.service_agent.get_user_input_services(q, timezone=timezone),
+      controller.location_agent.get_user_input_locations(q, limit=5),
+    )
 
     if calls:
       requested_services = _dedupe_services([service for service, _ in calls if service])
       locations_from_calls = [call_location for _, call_location in calls if call_location]
-      locations_from_text = await controller.location_agent.get_user_input_locations(q, limit=5)
       locations = _dedupe_locations(locations_from_calls + locations_from_text)
 
       if locations:
@@ -194,22 +197,21 @@ def create_generative_endpoints(
         if 'weather' in requested_services or 'air-quality' in requested_services:
           dateinfo = await controller.get_date(q, timezone=timezone)
 
-        if len(locations) == 1:
-          location = locations[0]
-          single_location_data: ResponseDataModel = {}
+        async def fetch_location_data(location: Any) -> ResponseDataModel:
+          location_tasks: dict[GetServiceTool.Service, Any] = {}
 
           if 'weather' in requested_services:
             providers.add(forecast.name)
 
             if dateinfo and dateinfo.period == 'hourly':
-              single_location_data['weather'] = await forecast.fetch(
+              location_tasks['weather'] = forecast.fetch(
                 lat=location.lat,
                 lon=location.lon,
                 timezone=timezone,
                 temperature_unit=temperature_unit,
               )
             else:
-              single_location_data['weather'] = await forecast.fetch_daily(
+              location_tasks['weather'] = forecast.fetch_daily(
                 lat=location.lat,
                 lon=location.lon,
                 dateinfo=dateinfo,  # type: ignore[arg-type]
@@ -218,48 +220,27 @@ def create_generative_endpoints(
 
           if 'air-quality' in requested_services:
             providers.add(air_quality.name)
-            single_location_data['air-quality'] = await air_quality.fetch(lat=location.lat, lon=location.lon)
+            location_tasks['air-quality'] = air_quality.fetch(lat=location.lat, lon=location.lon)
 
           if 'pollen' in requested_services:
             providers.add(pollen.name)
-            single_location_data['pollen'] = await pollen.fetch(lon=location.lon, lat=location.lat)
+            location_tasks['pollen'] = pollen.fetch(lon=location.lon, lat=location.lat)
 
-          data = single_location_data
+          if not location_tasks:
+            return {}
+
+          fetched_values = await asyncio.gather(*location_tasks.values())
+          return {service: value for service, value in zip(location_tasks.keys(), fetched_values, strict=False)}
+
+        location_payloads = await asyncio.gather(*(fetch_location_data(location) for location in locations))
+
+        if len(locations) == 1:
+          data = location_payloads[0]
         else:
-          multi_location_data: dict[str, ResponseDataModel] = {}
-
-          for location in locations:
-            location_data: ResponseDataModel = {}
-
-            if 'weather' in requested_services:
-              providers.add(forecast.name)
-
-              if dateinfo and dateinfo.period == 'hourly':
-                location_data['weather'] = await forecast.fetch(
-                  lat=location.lat,
-                  lon=location.lon,
-                  timezone=timezone,
-                  temperature_unit=temperature_unit,
-                )
-              else:
-                location_data['weather'] = await forecast.fetch_daily(
-                  lat=location.lat,
-                  lon=location.lon,
-                  dateinfo=dateinfo,  # type: ignore[arg-type]
-                  temperature_unit=temperature_unit,
-                )
-
-            if 'air-quality' in requested_services:
-              providers.add(air_quality.name)
-              location_data['air-quality'] = await air_quality.fetch(lat=location.lat, lon=location.lon)
-
-            if 'pollen' in requested_services:
-              providers.add(pollen.name)
-              location_data['pollen'] = await pollen.fetch(lon=location.lon, lat=location.lat)
-
-            multi_location_data[location.display_name] = location_data
-
-          data = multi_location_data
+          data = {
+            location.display_name: payload
+            for location, payload in zip(locations, location_payloads, strict=False)
+          }
 
         if providers and requested_services:
           primary_location = locations[0]
