@@ -185,8 +185,8 @@ def create_generative_endpoints(
     )
 
     if calls:
-      requested_services = _dedupe_services([service for service, _ in calls if service])
-      locations_from_calls = [call_location for _, call_location in calls if call_location]
+      requested_services = _dedupe_services([service for service, _, _ in calls if service])
+      locations_from_calls = [call_location for _, call_location, _ in calls if call_location]
       locations = _dedupe_locations(locations_from_calls + locations_from_text)
 
       if locations:
@@ -200,8 +200,55 @@ def create_generative_endpoints(
         async def fetch_location_data(location: Any) -> ResponseDataModel:
           location_tasks: dict[GetServiceTool.Service, Any] = {}
 
+          # Helper to retrieve extracted variables for this location and service
+          def get_vars(service_name: str):
+            sh_vars, sd_vars, s_vars = None, None, None
+
+            for call_service, call_loc, call_args in calls:
+              if call_service == service_name:
+                is_match = False
+
+                if call_loc:
+                  is_match = abs(call_loc.lat - location.lat) < 0.1 and abs(call_loc.lon - location.lon) < 0.1
+                else:
+                  is_match = len(locations) == 1
+
+                if is_match and call_args:
+                  if service_name == 'weather':
+                    sh_vars = call_args.get('hourly_variables')
+                    sd_vars = call_args.get('daily_variables')
+                  elif service_name == 'air-quality':
+                    s_vars = call_args.get('variables')
+                  break
+
+            if not sh_vars and not sd_vars and not s_vars:
+              h_union, d_union, v_union = [], [], []
+
+              for call_service, _, call_args in calls:
+                if call_service == service_name and call_args:
+                  if service_name == 'weather':
+                    if call_args.get('hourly_variables'):
+                      h_union.extend(call_args.get('hourly_variables'))  # type: ignore
+
+                    if call_args.get('daily_variables'):
+                      d_union.extend(call_args.get('daily_variables'))  # type: ignore
+                  elif service_name == 'air-quality':
+                    if call_args.get('variables'):
+                      v_union.extend(call_args.get('variables'))  # type: ignore
+
+              if h_union:
+                sh_vars = list(set(h_union))
+
+              if d_union:
+                sd_vars = list(set(d_union))
+
+              if v_union:
+                s_vars = list(set(v_union))
+            return sh_vars, sd_vars, s_vars
+
           if 'weather' in requested_services:
             providers.add(forecast.name)
+            sh_vars, sd_vars, _ = get_vars('weather')
 
             if dateinfo and dateinfo.period == 'hourly':
               location_tasks['weather'] = forecast.fetch(
@@ -209,6 +256,8 @@ def create_generative_endpoints(
                 lon=location.lon,
                 timezone=timezone,
                 temperature_unit=temperature_unit,
+                hourly_variables=sh_vars,
+                daily_variables=sd_vars,
               )
             else:
               location_tasks['weather'] = forecast.fetch_daily(
@@ -216,11 +265,13 @@ def create_generative_endpoints(
                 lon=location.lon,
                 dateinfo=dateinfo,  # type: ignore[arg-type]
                 temperature_unit=temperature_unit,
+                daily_variables=sd_vars,
               )
 
           if 'air-quality' in requested_services:
             providers.add(air_quality.name)
-            location_tasks['air-quality'] = air_quality.fetch(lat=location.lat, lon=location.lon)
+            _, _, s_vars = get_vars('air-quality')
+            location_tasks['air-quality'] = air_quality.fetch(lat=location.lat, lon=location.lon, variables=s_vars)
 
           if 'pollen' in requested_services:
             providers.add(pollen.name)
@@ -237,10 +288,7 @@ def create_generative_endpoints(
         if len(locations) == 1:
           data = location_payloads[0]
         else:
-          data = {
-            location.display_name: payload
-            for location, payload in zip(locations, location_payloads, strict=False)
-          }
+          data = {location.display_name: payload for location, payload in zip(locations, location_payloads, strict=False)}
 
         if providers and requested_services:
           primary_location = locations[0]

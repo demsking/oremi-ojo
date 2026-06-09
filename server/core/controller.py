@@ -144,9 +144,9 @@ class Controller:
   def _is_french_locale(locale: str | None) -> bool:
     return bool(locale and locale.lower().startswith('fr'))
 
-  def _localize_pollen_for_prompt(self, data: PollenData | None, *, locale: str | None) -> dict[str, Any] | PollenData | None:
+  def _localize_pollen_for_prompt(self, data: PollenData | None, *, locale: str | None) -> dict[str, Any] | None:
     if not self._is_french_locale(locale) or not isinstance(data, PollenData):
-      return data
+      return data.model_dump() if isinstance(data, BaseModel) else data
 
     pollen_names = [Controller.POLLEN_NAME_FR.get(name, name.value) for name in data.pollen_names or []]
     dominant_pollen = (

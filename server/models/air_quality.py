@@ -15,22 +15,29 @@
 from typing import Literal
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from pydantic import Field
 
 
 class Hourly(BaseModel):
+  model_config = ConfigDict(extra='allow')
+
   time: list[str] = Field(..., description='List of ISO 8601 timestamps')
-  european_aqi: list[int] = Field(..., description='List of European AQI values')
-  us_aqi: list[int] = Field(..., description='List of US AQI values')
+  european_aqi: list[int] | None = Field(None, description='List of European AQI values')
+  us_aqi: list[int] | None = Field(None, description='List of US AQI values')
 
 
 class HourlyUnits(BaseModel):
+  model_config = ConfigDict(extra='allow')
+
   time: str = Field(..., description='Unit for time values, typically "iso8601"')
-  european_aqi: str = Field(..., description='Unit for European AQI, typically "EAQI"')
-  us_aqi: str = Field(..., description='Unit for US AQI, typically "USAQI"')
+  european_aqi: str | None = Field(None, description='Unit for European AQI, typically "EAQI"')
+  us_aqi: str | None = Field(None, description='Unit for US AQI, typically "USAQI"')
 
 
 class AirQualityData(BaseModel):
+  model_config = ConfigDict(extra='allow')
+
   latitude: float = Field(..., description='Latitude of the location')
   longitude: float = Field(..., description='Longitude of the location')
   generationtime_ms: float = Field(..., description='Time taken to generate the response in milliseconds')
@@ -42,6 +49,8 @@ class AirQualityData(BaseModel):
 
 
 class EAQIData(BaseModel):
+  model_config = ConfigDict(extra='allow')
+
   value: int = Field(..., description='European AQI value')
   level: Literal['good', 'fair', 'moderate', 'poor', 'very poor', 'extremely poor', 'unknown'] = Field(
     ..., description='European AQI level category'
@@ -50,6 +59,8 @@ class EAQIData(BaseModel):
 
 
 class USAQIData(BaseModel):
+  model_config = ConfigDict(extra='allow')
+
   value: int = Field(..., description='US AQI value')
   level: Literal[
     'good', 'moderate', 'unhealthy for sensitive groups', 'unhealthy', 'very unhealthy', 'hazardous', 'unknown'

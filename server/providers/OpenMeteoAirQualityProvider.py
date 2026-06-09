@@ -69,8 +69,67 @@ class OpenMeteoAirQualityProvider(Provider):
         return level
     return 'unknown'
 
-  async def fetch(self, *, lon: float, lat: float) -> USAQIData | EAQIData:
+  async def fetch(self, *, lon: float, lat: float, variables: list[str] | None = None) -> USAQIData | EAQIData:
     self.logger.info(f'Fetching air quality data for geo ({lon}, {lat})')
+
+    allowed_aqi = {
+      'pm10',
+      'pm2_5',
+      'carbon_monoxide',
+      'carbon_dioxide',
+      'nitrogen_dioxide',
+      'sulphur_dioxide',
+      'ozone',
+      'aerosol_optical_depth',
+      'dust',
+      'uv_index',
+      'uv_index_clear_sky',
+      'ammonia',
+      'methane',
+      'alder_pollen',
+      'birch_pollen',
+      'grass_pollen',
+      'mugwort_pollen',
+      'olive_pollen',
+      'ragweed_pollen',
+      'formaldehyde',
+      'glyoxal',
+      'non_methane_volatile_organic_compounds',
+      'pm10_wildfires',
+      'peroxyacyl_nitrates',
+      'secondary_inorganic_aerosol',
+      'residential_elementary_carbon',
+      'total_elementary_carbon',
+      'pm2_5_total_organic_matter',
+      'sea_salt_aerosol',
+      'nitrogen_monoxide',
+      'european_aqi',
+      'european_aqi_pm2_5',
+      'european_aqi_pm10',
+      'european_aqi_nitrogen_dioxide',
+      'european_aqi_ozone',
+      'european_aqi_sulphur_dioxide',
+      'us_aqi',
+      'us_aqi_pm2_5',
+      'us_aqi_pm10',
+      'us_aqi_nitrogen_dioxide',
+      'us_aqi_carbon_monoxide',
+      'us_aqi_ozone',
+      'us_aqi_sulphur_dioxide',
+      'is_day',
+    }
+
+    if variables is not None:
+      aqi_vars = [var for var in variables if var in allowed_aqi]
+    else:
+      aqi_vars = []
+
+    # Make sure we always fetch the AQIs to determine the overall levels/response class
+    if 'european_aqi' not in aqi_vars:
+      aqi_vars.append('european_aqi')
+
+    if 'us_aqi' not in aqi_vars:
+      aqi_vars.append('us_aqi')
 
     current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
     current_time_str = current_time.isoformat()[0:-3]
@@ -80,7 +139,7 @@ class OpenMeteoAirQualityProvider(Provider):
       params={
         'latitude': lat,
         'longitude': lon,
-        'hourly': 'european_aqi,us_aqi',
+        'hourly': ','.join(aqi_vars),
         'start_date': current_time.date().isoformat(),
         'end_date': current_time.date().isoformat(),
       },
@@ -101,7 +160,18 @@ class OpenMeteoAirQualityProvider(Provider):
       response_class = EAQIData
 
     index = data.hourly.time.index(current_time_str)
-    air_quality = raw[index]
+    air_quality = raw[index]  # type: ignore
     level = OpenMeteoAirQualityProvider.determine_level(air_quality, levels)  # type: ignore
 
-    return response_class(value=air_quality, level=level, unit=unit)  # type: ignore
+    # Get extra pollutant values at the current time
+    hourly_dict = data.hourly.model_dump()
+    hourly_units_dict = data.hourly_units.model_dump()
+
+    extra_data = {}
+    for var in aqi_vars:
+      if var not in ('european_aqi', 'us_aqi') and var in hourly_dict and hourly_dict[var] is not None:
+        val = hourly_dict[var][index]
+        unit_val = hourly_units_dict.get(var, '')
+        extra_data[var] = f'{val} {unit_val}'.strip() if unit_val else val
+
+    return response_class(value=air_quality, level=level, unit=unit, **extra_data)  # type: ignore

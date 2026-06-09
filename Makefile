@@ -57,7 +57,7 @@ fix:
 install:
 	rm -rf .venv
 	uv venv --clear
-	uv sync --with extras.python
+	uv sync
 
 outdated: install
 	uv pip list --outdated
