@@ -14,6 +14,7 @@
 # ==============================================================================
 import json
 import logging
+import re
 from datetime import datetime
 from types import NoneType
 from typing import Any
@@ -31,8 +32,6 @@ from ..models.air_quality import USAQIData
 from ..models.forecast import DailyForecastData
 from ..models.forecast import ForecastData
 from ..models.pollen import PollenData
-from ..models.pollen import PollenName
-from ..models.pollen import PollenSeverity
 from ..tools.date_tool import GetDateTool
 from ..tools.date_tool import Period
 from ..tools.location_tool import GetLocationTool
@@ -47,22 +46,15 @@ ResponseDataType = TypeVar('ResponseDataType', bound=BaseModel | ResponsePayload
 
 class Controller:
   SERVICE_NAMES: ClassVar[set[str]] = {'weather', 'air-quality', 'pollen'}
-
-  POLLEN_NAME_FR: ClassVar[dict[PollenName, str]] = {
-    PollenName.ALDER: 'aulne',
-    PollenName.BIRCH: 'bouleau',
-    PollenName.GRASS: 'graminées',
-    PollenName.MUGWORT: 'armoise',
-    PollenName.OLIVE: 'olivier',
-    PollenName.RAGWEED: 'ambroisie',
-  }
-
-  POLLEN_SEVERITY_FR: ClassVar[dict[PollenSeverity, str]] = {
-    PollenSeverity.ZERO: 'nul',
-    PollenSeverity.LOW: 'faible',
-    PollenSeverity.MODERATE: 'modéré',
-    PollenSeverity.HIGH: 'élevé',
-    PollenSeverity.VERY_HIGH: 'très élevé',
+  DEFAULT_RESPONSE_TEXT: ClassVar[str] = 'No response'
+  POLLEN_GLOSSARY_FR: ClassVar[dict[str, str]] = {
+    'alder': 'aulne',
+    'birch': 'bouleau',
+    'grass': 'graminées',
+    'grass pollen': 'pollen de graminées',
+    'mugwort': 'armoise',
+    'olive': 'olivier',
+    'ragweed': 'ambroisie',
   }
 
   def __init__(self, assistant: Assistant, logger: logging.Logger) -> None:
@@ -71,11 +63,11 @@ class Controller:
     self.response_agent = assistant.create_agent(
       system=(
         "You are a smart weather assistant. Respond to the user's weather request in a natural, clear, and human-like way, "
-        "using the same language as the user's request. Use the forecast data provided in the context to generate your response.\n"
+        'Respond only in English. Use the forecast data provided in the context to generate your response.\n'
         'Do not use text in parentheses. Provide direct answers only.\n'
-        "Do not start with greetings like 'Hello', 'Bonjour', or the user's name. Go straight to the point.\n"
+        "Do not start with greetings like 'Hello' or the user's name. Go straight to the point.\n"
         'Your response must:\n'
-        "- Be conversational and adapted to the user's language\n"
+        '- Be conversational and clear in English\n'
         '- Avoid listing raw data\n'
         "- Subtly mention the source of the data by extracting the provider's name from the context\n"
         '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
@@ -85,10 +77,18 @@ class Controller:
       )
     )
 
+    self.language_detector_agent = assistant.create_agent(
+      system=(
+        'Detect the language of the provided user text and return only one BCP-47 language code in lowercase '
+        '(examples: en, fr, es, pt-br, ar, sw). '
+        'Do not add explanations or extra text.'
+      )
+    )
+
     self.alerts_response_agent = assistant.create_agent(
       system=(
         'You are an emergency alert specialist. Deliver urgent notifications about weather, pollen, and air quality risks. '
-        "Prioritize immediate dangers and actionable advice. Respond in the user's language using only active alerts.\n\n"
+        'Prioritize immediate dangers and actionable advice. Respond only in English using active alerts.\n\n'
         'Critical response rules:\n'
         # '1. URGENCY FIRST:\n'
         # '   - Start with the most severe threat\n'
@@ -108,20 +108,31 @@ class Controller:
         '3. ACTIONS:\n'
         '   Always end with one concrete recommendation\n\n'
         'Your response must:\n'
-        "- Be conversational and adapted to the user's language\n"
+        '- Be conversational and clear in English\n'
         '- Avoid listing raw data\n'
         "- Subtly mention the source of the data by extracting the provider's name from the context\n"
         '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
         '- Feel like a helpful assistant speaking to a human\n'
         '- Always use short, simple sentences\n'
         'Never mention:\n'
-        "- Do not start with greetings like 'Hello', 'Bonjour', or the user's name. Go straight to the point.\n"
+        "- Do not start with greetings like 'Hello' or the user's name. Go straight to the point.\n"
         '- Low-risk conditions (level 1/0)\n'
         '- Technical measurements\n'
         '- Future forecasts beyond 24 hours\n'
         '- Multiple alerts of same type/severity\n'
         '- Avoid any formating or new lines.\n'
         'Your responses will be used by a text-to-speech (TTS) service. Make sure they are easy to pronounce and suitable for basic TTS engines.\n'
+      )
+    )
+
+    self.translation_agent = assistant.create_agent(
+      system=(
+        'You are an expert translator for weather and health-risk messages. '
+        'Translate from English into the target language with natural, idiomatic phrasing for native speakers. '
+        'Avoid literal word-by-word translation and awkward calques. '
+        'Preserve factual meaning, numbers, units, location names, and provider names. '
+        'Keep the style concise and suitable for text-to-speech. '
+        'Return only the translated text with no explanations.'
       )
     )
 
@@ -141,50 +152,45 @@ class Controller:
     )
 
   @staticmethod
-  def _is_french_locale(locale: str | None) -> bool:
-    return bool(locale and locale.lower().startswith('fr'))
+  def _normalize_language(language: str | None, *, default: str = 'en') -> str:
+    if not language:
+      return default
 
-  def _localize_pollen_for_prompt(self, data: PollenData | None, *, locale: str | None) -> dict[str, Any] | None:
-    if not self._is_french_locale(locale) or not isinstance(data, PollenData):
-      return data.model_dump() if isinstance(data, BaseModel) else data
+    normalized = language.strip().lower()
+    return normalized if normalized else default
 
-    pollen_names = [Controller.POLLEN_NAME_FR.get(name, name.value) for name in data.pollen_names or []]
-    dominant_pollen = (
-      Controller.POLLEN_NAME_FR.get(data.dominant_pollen, data.dominant_pollen.value) if data.dominant_pollen else None
-    )
+  @staticmethod
+  def _extract_language_code(raw_value: str | None, *, default: str = 'en') -> str:
+    if not raw_value:
+      return default
 
-    details = {
-      Controller.POLLEN_NAME_FR.get(name, name.value): {
-        'level': detail.level,
-        'severity': Controller.POLLEN_SEVERITY_FR.get(detail.severity, detail.severity.value),
-      }
-      for name, detail in data.details.items()
+    value = raw_value.strip().lower().replace('_', '-')
+    match = re.search(r'\b[a-z]{2,3}(?:-[a-z0-9]{2,8})*\b', value)
+
+    if match:
+      return match.group(0)
+
+    language_name_map = {
+      'english': 'en',
+      'french': 'fr',
+      'spanish': 'es',
+      'german': 'de',
+      'portuguese': 'pt',
+      'arabic': 'ar',
+      'swahili': 'sw',
     }
 
-    return {
-      'pollen_names': pollen_names or None,
-      'units': data.units,
-      'dominant_pollen': dominant_pollen,
-      'details': details,
-    }
+    return language_name_map.get(value, default)
 
-  def _format_service_data_map(self, data: dict[str, ResponseData | NoneType], *, locale: str | None) -> dict[str, Any]:
+  def _format_service_data_map(self, data: dict[str, ResponseData | NoneType]) -> dict[str, Any]:
     return {
-      service: (
-        self._localize_pollen_for_prompt(service_data, locale=locale)
-        if service == 'pollen' and isinstance(service_data, PollenData)
-        else (service_data.model_dump() if isinstance(service_data, BaseModel) else service_data)
-      )
+      service: (service_data.model_dump() if isinstance(service_data, BaseModel) else service_data)
       for service, service_data in data.items()
     }
 
-  def _format_prompt_data(self, data: ResponsePayloadModel | ResponseData | NoneType, *, locale: str | None) -> str:
+  def _format_prompt_data(self, data: ResponsePayloadModel | ResponseData | NoneType) -> str:
     if data is None:
       return 'Response: Unable to fetch data for the specified location'
-
-    if isinstance(data, PollenData):
-      localized_data = self._localize_pollen_for_prompt(data, locale=locale)
-      return json.dumps(localized_data, ensure_ascii=False)
 
     if isinstance(data, BaseModel):
       return data.model_dump_json()
@@ -198,7 +204,7 @@ class Controller:
           for service, service_data in data.items()
           if not isinstance(service_data, dict)
         }
-        return json.dumps(self._format_service_data_map(service_data_map, locale=locale), ensure_ascii=False)
+        return json.dumps(self._format_service_data_map(service_data_map), ensure_ascii=False)
 
       payload_by_location: dict[str, Any] = {}
 
@@ -209,13 +215,67 @@ class Controller:
             for service, service_data in location_data.items()
             if not isinstance(service_data, dict)
           }
-          payload_by_location[location_name] = self._format_service_data_map(location_service_map, locale=locale)
+          payload_by_location[location_name] = self._format_service_data_map(location_service_map)
         else:
           payload_by_location[location_name] = location_data
 
       return json.dumps(payload_by_location, ensure_ascii=False)
 
     return str(data)
+
+  @staticmethod
+  def _date_prompt_context(dateinfo: 'Controller.DateInfo | None') -> str:
+    if not dateinfo:
+      return ''
+
+    if dateinfo.start == dateinfo.end:
+      today = datetime.now()
+
+      if dateinfo.start.date() == today.date():
+        return f'Current Date and Time: {today}.'
+
+      return f'Date: {dateinfo.start_date}.'
+
+    return f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
+
+  @staticmethod
+  def _extract_generated_text(result: Any) -> str:
+    return result.response if result and result.response else Controller.DEFAULT_RESPONSE_TEXT
+
+  @staticmethod
+  def _translation_glossary_instruction(target_language: str) -> str:
+    if not target_language.startswith('fr'):
+      return ''
+
+    glossary = '\n'.join(f'- {source} => {target}' for source, target in Controller.POLLEN_GLOSSARY_FR.items())
+
+    return f'Pollen terminology glossary (mandatory):\n{glossary}\n'
+
+  async def _translate_if_needed(self, english_message: str, target_language: str) -> str:
+    if target_language.startswith('en'):
+      return english_message
+
+    self.logger.debug(f'Translating message to {target_language} using translation agent: "{english_message}"')
+    glossary_instruction = Controller._translation_glossary_instruction(target_language)
+
+    translated = await self.translation_agent.generate(
+      (
+        f'Target language: {target_language}.\n'
+        f'English source: {english_message}\n'
+        f'{glossary_instruction}'
+        'Requirements: use natural native phrasing; avoid literal translation; keep meaning exact.'
+      )
+    )
+
+    return Controller._extract_generated_text(translated)
+
+  async def detect_output_language(self, user_input: str) -> str:
+    detected = await self.language_detector_agent.generate(f'User text: {user_input}')
+    detected_text = Controller._extract_generated_text(detected)
+
+    self.logger.debug(f'Detected language: {detected_text}')
+
+    return Controller._extract_language_code(detected_text)
 
   async def generate_response(
     self,
@@ -226,10 +286,10 @@ class Controller:
     data: ResponsePayloadModel,
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
-    locale: str | None = None,
+    language: str | None = None,
   ) -> 'Controller.Response[ResponsePayloadModel]':
-    prompt_data = self._format_prompt_data(data, locale=locale)
-    message_language = locale if locale else 'en'
+    prompt_data = self._format_prompt_data(data)
+    target_language = Controller._normalize_language(language)
 
     prompt = (
       f'User Request: {user_input}.\n'
@@ -237,25 +297,22 @@ class Controller:
       f'Services: {", ".join(services)}.\n'
       f'{prompt_data}.\n'
       f'Temperature Unit: {temperature_unit}\n'
-      f'User Language: {message_language}\n'
+      'Output Language: en\n'
     )
 
-    if dateinfo:
-      if dateinfo.start == dateinfo.end:
-        prompt += f'Date: {dateinfo.start_date}.'
-      else:
-        prompt += f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
+    prompt += Controller._date_prompt_context(dateinfo)
 
     result = await self.response_agent.generate(prompt)
+    english_message = Controller._extract_generated_text(result)
+    message = await self._translate_if_needed(english_message, target_language)
 
-    self.logger.debug(f'Generated response: {result.response if result else "No response"}')
+    self.logger.debug(f'Generated response: {message}')
 
     return Controller.Response(
       input=user_input,
       services=services,
       provider=provider,
-      message=result.response if result else 'No response',
-      message_language=message_language,
+      message=message,
       location=location,
       data=data,
     )
@@ -269,29 +326,22 @@ class Controller:
     dateinfo: 'Controller.DateInfo | None',
     language: str,
   ) -> 'Controller.AlertResponse[ResponseData | NoneType]':
-    prompt_data = self._format_prompt_data(data, locale=language)
+    prompt_data = self._format_prompt_data(data)
+    target_language = Controller._normalize_language(language)
 
-    prompt = (
-      f'Provider: {provider}.\n'
-      f'Provider Response: {prompt_data}.\n'
-      f'Temperature Unit: {temperature_unit}\n'
-      f'User Language: {language}\n'
-    )
-
-    if dateinfo:
-      if dateinfo.start == dateinfo.end:
-        prompt += f'Date: {dateinfo.start_date}.'
-      else:
-        prompt += f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
+    prompt = f'Provider: {provider}.\nProvider Response: {prompt_data}.\nTemperature Unit: {temperature_unit}\n'
+    prompt += Controller._date_prompt_context(dateinfo)
 
     result = await self.alerts_response_agent.generate(prompt)
+    english_message = Controller._extract_generated_text(result)
+    message = await self._translate_if_needed(english_message, target_language)
 
-    self.logger.debug(f'Generated alert response: {result.response if result else "No response"}')
+    self.logger.debug(f'Generated alert response: {message}')
 
     return Controller.AlertResponse(
       service=service,
       provider=provider,
-      message=result.response if result else 'No response',
+      message=message,
       data=data,
     )
 
@@ -325,7 +375,6 @@ class Controller:
     input: str = Field(..., description='User input that triggered the response')
     services: list[GetServiceTool.Service] = Field(..., description='List of services used for generating the response')
     message: str = Field(..., description='Message or explanation related to the response')
-    message_language: str = Field(..., description='Language code used for the generated message')
     data: ResponseDataType | None = Field(..., description='Structured data returned by the provider')
     location: Location = Field(..., description='Location information related to the response')
 

@@ -76,7 +76,6 @@ def create_generative_endpoints(
       'services': ['weather'],
       'input': "Quel temps fait à Paris aujourd'hui ?",
       'message': "Il fait 12 degrés Celsius à Paris aujourd'hui, avec une humideur de 37 pour cent et un vent doux à 4,3 kilomètres par heure. Il commence à se lever à 7h13 et se couche à 20h31. C'est un excellent temps pour sortir et profiter du soleil.",
-      'message_language': 'fr',
       'data': {
         'temperature': '12.3°C',
         'humidity': '37%',
@@ -179,9 +178,10 @@ def create_generative_endpoints(
     If no service can be identified, it returns a service-identification error.
     If no location can be resolved, it returns a location error.
     """
-    calls, locations_from_text = await asyncio.gather(
+    calls, locations_from_text, output_language = await asyncio.gather(
       controller.service_agent.get_user_input_services(q, timezone=timezone),
       controller.location_agent.get_user_input_locations(q, limit=5),
+      controller.detect_output_language(q),
     )
 
     if calls:
@@ -292,7 +292,6 @@ def create_generative_endpoints(
 
         if providers and requested_services:
           primary_location = locations[0]
-          locale = primary_location.address.country_code if primary_location.address else None
           provider = ', '.join(sorted(providers))
 
           return await controller.generate_response(
@@ -303,7 +302,7 @@ def create_generative_endpoints(
             data,
             temperature_unit,
             dateinfo,
-            locale=locale,
+            output_language,
           )
 
       raise HTTPException(status_code=400, detail='No location found for user input')
@@ -355,8 +354,8 @@ def create_generative_endpoints(
     ),
     language: str = Query(
       'en',
-      description='Language code for the alert message content.',
-      examples=['fr', 'en'],
+      description='Target language code for the alert message content (any BCP-47 style code).',
+      examples=['en', 'fr', 'es', 'de', 'pt-BR', 'ar', 'sw'],
     ),
     temperature_unit: TemperatureUnit = Query(
       'celsius',
