@@ -18,6 +18,12 @@ weather and geocoding data.
   name, address, or coordinates.
 - **Generative Responses**: Use natural language queries to retrieve weather,
   air quality, or pollen data for specific locations.
+- **Multilingual Output Pipeline**: Messages are generated in English first and
+  translated to the detected/requested language.
+- **Multi-Service & Multi-Location Queries**: One query can combine weather,
+  air quality, and pollen requests across multiple locations.
+- **Structured Pollen Payload**: Pollen responses expose `units`,
+  `dominant_pollen`, and `details` by pollen type with `level` and `severity`.
 - **Caching**: Supports caching of data to improve performance and reduce
   redundant API calls.
 - **Dockerized**: Easily deployable using the [`demsking/oremi-weather-agent`](https://hub.docker.com/r/demsking/oremi-weather-agent)
