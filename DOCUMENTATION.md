@@ -101,7 +101,7 @@ These variables control HTTP request behavior and caching settings.
 ### Ollama Configuration
 
 - **OLLAMA_BASEURL**: Base URL of the Ollama API. Required for communication with Ollama services.
-- **OLLAMA_MODEL**: Model name to use for Ollama services. It must support Tools. Default is `"llama3.2"`.
+- **OLLAMA_MODEL**: Model name to use for Ollama services. It must support Tools. Default is `"qwen2.5:3b"`.
 
 ### API and Logging Configuration
 

@@ -1,4 +1,4 @@
-# Copyright 2024-2025 Sébastien Demanou. All Rights Reserved.
+# Copyright 2024-2026 Sébastien Demanou. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ Base URL of the Ollama API.
 Required for communication with Ollama services.
 """
 
-OLLAMA_MODEL = getenv('OLLAMA_MODEL', default='llama3.2')
+OLLAMA_MODEL = getenv('OLLAMA_MODEL', default='qwen2.5:3b')
 """
 Model name to use for Ollama services. It must support Tools.
 """
