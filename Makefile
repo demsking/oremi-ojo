@@ -103,7 +103,6 @@ image-test:
 	  --tag $(IMAGE_NAME):test
 
 publish: image-test
-	git commit pyproject.toml uv.lock -m "Release $(APP_VERSION)"
-	$(MAKE) image
 	git tag v$(APP_VERSION)
+	$(MAKE) image
 	git push --tags origin main
