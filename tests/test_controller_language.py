@@ -14,8 +14,8 @@
 # ==============================================================================
 from dataclasses import dataclass
 
-from weather.core.controller import Controller
-from weather.core.geo import Location
+from ojo.core.controller import Controller
+from ojo.core.geo import Location
 
 
 @dataclass

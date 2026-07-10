@@ -1536,7 +1536,7 @@ wheels = [
 ]
 
 [[package]]
-name = "oremi-weather-agent"
+name = "oremi-ojo"
 version = "3.0.0b12"
 source = { editable = "." }
 dependencies = [

@@ -33,13 +33,13 @@ from ..llm.agent import AgentClient
 from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
 from ..providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
+from ..utils.cache import SmartCache
 from ..utils.logger import configure_logging
 from ..utils.url import safe_url
 from .package import APP_DESCRIPTION
 from .package import APP_NAME
 from .package import APP_VERSION
 from .settings import Settings
-from weather.utils.cache import SmartCache
 
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
     try:
       if settings.uses_ollama():
         if settings.ollama_base_url is None:
-          logger.warning('OREMI_WEATHER_OLLAMA_BASE_URL is not configured; LLM-backed endpoints will be unavailable')
+          logger.warning('OREMI_OJO_OLLAMA_BASE_URL is not configured; LLM-backed endpoints will be unavailable')
         else:
           await assistant.load_model()
 
@@ -104,25 +104,25 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       app.state.air_quality_provider = air_quality_provider
       app.state.pollen_provider = pollen_provider
 
-      logger.info(f'Oremi Weather Agent ready: duration_ms={(perf_counter() - startup_started) * 1000:.1f}')
+      logger.info(f'Oremi Ojọ ready: duration_ms={(perf_counter() - startup_started) * 1000:.1f}')
 
       yield
     finally:
       shutdown_started = perf_counter()
 
       if ready:
-        logger.info('Shutting down Oremi Weather Agent')
+        logger.info('Shutting down Oremi Ojọ')
       else:
-        logger.warning('Oremi Weather Agent startup aborted; cleaning up resources')
+        logger.warning('Oremi Ojọ startup aborted; cleaning up resources')
 
       await client.aclose()
-      logger.info(f'Oremi Weather Agent stopped: duration_ms={(perf_counter() - shutdown_started) * 1000:.1f}')
+      logger.info(f'Oremi Ojọ stopped: duration_ms={(perf_counter() - shutdown_started) * 1000:.1f}')
 
   app = FastAPI(
     docs_url=None,
     redoc_url=None,
     lifespan=lifespan,
-    title='Oremi Weather Agent',
+    title='Oremi Ojọ',
     version=APP_VERSION,
     description=APP_DESCRIPTION,
     root_path=settings.api_prefix,

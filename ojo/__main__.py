@@ -18,12 +18,12 @@ import sys
 
 import uvicorn
 
-from weather.core.args import parse_arguments
-from weather.core.package import APP_NAME
-from weather.core.package import APP_VERSION
-from weather.core.settings import get_settings
-from weather.utils.logger import LOGGER_DATE_FORMAT
-from weather.utils.logger import LOGGER_FORMAT
+from ojo.core.args import parse_arguments
+from ojo.core.package import APP_NAME
+from ojo.core.package import APP_VERSION
+from ojo.core.settings import get_settings
+from ojo.utils.logger import LOGGER_DATE_FORMAT
+from ojo.utils.logger import LOGGER_FORMAT
 
 __version__ = APP_VERSION
 
@@ -35,7 +35,7 @@ async def main() -> None:
 
   settings = get_settings()
   config = uvicorn.Config(
-    'weather:app',
+    'ojo:app',
     host=settings.server_host,
     port=settings.server_port,
     server_header=False,
@@ -80,7 +80,7 @@ def start():
   except KeyboardInterrupt:
     pass
   except Exception as exception:
-    logger.error(f'Oremi Weather Agent failed to start: {exception}')
+    logger.error(f'Oremi Ojọ failed to start: {exception}')
     sys.exit(3)
 
 

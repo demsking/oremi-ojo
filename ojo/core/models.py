@@ -22,9 +22,9 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 
-from weather.core.controller import ResponsePayloadModel
-from weather.core.geo import Location
-from weather.tools.service_tool import GetServiceTool
+from ojo.core.controller import ResponsePayloadModel
+from ojo.core.geo import Location
+from ojo.tools.service_tool import GetServiceTool
 
 
 class ProcessRequest(BaseModel):

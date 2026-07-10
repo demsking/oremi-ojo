@@ -1,5 +1,5 @@
 ---
-name: dev-oremi-weather-agent
+name: dev-oremi-ojo
 
 services:
   ollama:

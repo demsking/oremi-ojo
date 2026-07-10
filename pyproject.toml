@@ -1,5 +1,5 @@
 [project]
-name = "oremi-weather-agent"
+name = "oremi-weather"
 version = "3.0.0-beta12"
 description = "A comprehensive climate agent for weather forecasts, geocoding, and pollen data"
 keywords = ["forecast", "air quality", "pollen", "geocoding"]
@@ -35,12 +35,12 @@ dependencies = [
 
 [project.urls]
 "Say Thanks!" = "https://www.buymeacoffee.com/demsking"
-"Documentation" = "https://demsking.gitlab.io/oremi-weather-agent"
-"Source" = "https://gitlab.com/demsking/oremi-weather-agent"
-"Issues" = "https://gitlab.com/demsking/oremi-weather-agent/-/issues"
+"Documentation" = "https://demsking.gitlab.io/oremi-ojo"
+"Source" = "https://gitlab.com/demsking/oremi-ojo"
+"Issues" = "https://gitlab.com/demsking/oremi-ojo/-/issues"
 
 [project.scripts]
-oremi-weather = "weather.__main__:start"
+oremi-weather = "ojo.__main__:start"
 
 [dependency-groups]
 dev = [

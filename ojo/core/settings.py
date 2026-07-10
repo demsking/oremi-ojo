@@ -26,14 +26,14 @@ from .package import APP_VERSION
 
 
 class Settings(BaseSettings):
-  """Application configuration settings for Oremi Weather Agent.
+  """Application configuration settings for Oremi Ojọ.
 
   All settings can be configured via environment variables.
   Service URLs are optional - if not provided, the service will run in chat-only mode.
   """
 
   model_config = SettingsConfigDict(
-    env_prefix='OREMI_WEATHER_',
+    env_prefix='OREMI_OJO_',
     strict=True,
     extra='ignore',
   )
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
   )
 
   user_agent: str = Field(
-    default=f'{APP_NAME}/{APP_VERSION} (https://gitlab.com/demsking/oremi-weather-agent)',
+    default=f'{APP_NAME}/{APP_VERSION} (https://gitlab.com/demsking/oremi-ojo)',
     min_length=1,
     description='User-Agent header value for outbound HTTP requests to external services.',
   )
@@ -126,7 +126,7 @@ class Settings(BaseSettings):
   @classmethod
   def validate_api_prefix(cls, value: str) -> str:
     if not value.startswith('/'):
-      raise ValueError("OREMI_WEATHER_API_PREFIX must start with '/'")
+      raise ValueError("OREMI_OJO_API_PREFIX must start with '/'")
 
     return value.rstrip('/') or '/'
 
@@ -152,7 +152,7 @@ class Settings(BaseSettings):
   def ollama_base_url_string(self) -> str:
     """Return the Ollama base URL for Pydantic AI."""
     if self.ollama_base_url is None:
-      raise ValueError('OREMI_WEATHER_OLLAMA_BASE_URL is required when using an ollama: model')
+      raise ValueError('OREMI_OJO_OLLAMA_BASE_URL is required when using an ollama: model')
 
     return str(self.ollama_base_url).rstrip('/')
 

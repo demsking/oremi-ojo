@@ -17,9 +17,9 @@ import pytest
 
 import numpy as np
 
-from weather.core.controller import Controller
-from weather.providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from weather.providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
+from ojo.core.controller import Controller
+from ojo.providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
+from ojo.providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
 
 
 class DummyController:

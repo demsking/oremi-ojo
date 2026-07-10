@@ -36,17 +36,17 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 
 COPY --chown=oremi:oremi DOCUMENTATION.md pyproject.toml LICENSE ./
 COPY --chown=oremi:oremi htdocs/ ./htdocs/
-COPY --chown=oremi:oremi weather/ ./weather/
+COPY --chown=oremi:oremi weather/ ./ojo/
 
 ENV PATH="/oremi/.venv/bin:$PATH"
 ENV PYTHONPATH="/oremi:/oremi/.venv/lib/python3.12/site-packages"
 ENV PYTHONUNBUFFERED="1"
 
-ENV OREMI_WEATHER_LOG_LEVEL="INFO"
-ENV OREMI_WEATHER_SERVER_HOST="0.0.0.0"
+ENV OREMI_OJO_LOG_LEVEL="INFO"
+ENV OREMI_OJO_SERVER_HOST="0.0.0.0"
 
 EXPOSE 1777
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD curl -f http://localhost:1777/health/ || exit 1
 
-CMD ["python", "/oremi/weather"]
+CMD ["python", "/oremi/ojo"]

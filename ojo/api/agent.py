@@ -409,7 +409,7 @@ async def process_user_input(
           return {}
 
         fetched_values = await asyncio.gather(*location_tasks.values())
-        return {service: value for service, value in zip(location_tasks.keys(), fetched_values, strict=False)}
+        return dict(zip(location_tasks.keys(), fetched_values, strict=False))
 
       location_payloads = await asyncio.gather(*(fetch_location_data(location) for location in locations))
 

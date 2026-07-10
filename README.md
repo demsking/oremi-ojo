@@ -1,21 +1,30 @@
-# Oremi Weather Agent
+# Oremi Ojọ
 
 [![Buy me a beer](https://img.shields.io/badge/Buy%20me-a%20beer-1f425f.svg)](https://www.buymeacoffee.com/demsking)
 
-**Oremi Weather Agent** is a powerful and user-friendly API for retrieving weather
-forecasts, air quality data, pollen levels, geographical location data, and
-server-related information. Built with FastAPI and designed to run in a Docker
-container, Oremi Weather Agent provides developers with easy access to accurate
-weather and geocoding data.
+**Oremi Ojọ** is a technical service that provides access to weather forecasts,
+air quality information, pollen levels, and geocoding data. It exposes a
+comprehensive set of REST API endpoints designed for reliable integration into
+applications that require environmental and location intelligence. In addition
+to its REST interface, Oremi Ojọ includes an MCP interface for structured
+interactions and an agent endpoint that enables natural language queries over
+its data.
 
-![Oremi Weather Agent Logo](https://gitlab.com/demsking/oremi-weather/-/raw/main/htdocs/logo.jpg)
+The name **"Ojọ"** comes from the Yoruba language and means **"weather"**. It
+reflects the service's purpose of delivering current conditions, forecasts, and
+related environmental data. Like other services in the Oremi ecosystem—such as
+**Oremi Akọrin** and **Oremi Isinmi**—the name is concise, meaningful, and
+rooted in Yoruba, reinforcing a consistent identity while remaining easy to
+recognize and remember.
+
+![Oremi Ojọ Logo](https://gitlab.com/demsking/oremi-weather/-/raw/main/htdocs/logo.jpg)
 
 ## Documentation
 
-Find the Oremi Weather Agent deployment and API documentation at
-[https://demsking.gitlab.io/oremi-weather-agent](https://demsking.gitlab.io/oremi-weather-agent).
+Find the Oremi Ojọ deployment and API documentation at
+[https://demsking.gitlab.io/oremi-ojo](https://demsking.gitlab.io/oremi-ojo).
 
-Release notes are available in [CHANGELOG.md](https://gitlab.com/demsking/oremi-weather-agent/blob/main/CHANGELOG.md).
+Release notes are available in [CHANGELOG.md](https://gitlab.com/demsking/oremi-ojo/blob/main/CHANGELOG.md).
 
 ## Features
 
@@ -36,12 +45,12 @@ Release notes are available in [CHANGELOG.md](https://gitlab.com/demsking/oremi-
 - **Structured Pollen Schema**: Pollen responses include `units`,
   `dominant_pollen`, and a per-pollen `details` map with `level` and
   `severity`.
-- **Dockerized**: Easily deployable using the `demsking/oremi-weather-agent` Docker
+- **Dockerized**: Easily deployable using the `demsking/oremi-ojo` Docker
   image.
 
 ## Contribute
 
-Please follow [CONTRIBUTING.md](https://gitlab.com/demsking/oremi-weather-agent/blob/main/CONTRIBUTING.md).
+Please follow [CONTRIBUTING.md](https://gitlab.com/demsking/oremi-ojo/blob/main/CONTRIBUTING.md).
 
 ## Versioning
 
@@ -62,4 +71,4 @@ See [SemVer.org](https://semver.org/) for more details.
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 this file except in compliance with the License.
 You may obtain a copy of the License at
-[LICENSE](https://gitlab.com/demsking/oremi-weather-agent/blob/main/LICENSE).
+[LICENSE](https://gitlab.com/demsking/oremi-ojo/blob/main/LICENSE).

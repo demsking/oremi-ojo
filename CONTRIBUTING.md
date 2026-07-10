@@ -1,8 +1,8 @@
-# Contributing to Oremi Weather Agent
+# Contributing to Oremi Ojọ
 
 ## Before Submitting an Issue
 
-Check that [our issue database](https://gitlab.com/demsking/oremi-weather-agent/issues)
+Check that [our issue database](https://gitlab.com/demsking/oremi-ojo/issues)
 doesn't already include that problem or suggestion before submitting an issue.
 If you find a match, you can use the "subscribe" button to get notified on
 updates. Do _not_ leave random "+1" or "I have this too" comments, as they
@@ -80,13 +80,13 @@ Please see the [Makefile](Makefile) for the full list of targets.
 
 ## Contribute
 
-Contributions to Oremi Weather Agent are welcome. Here is how you can contribute:
+Contributions to Oremi Ojọ are welcome. Here is how you can contribute:
 
-1. [Submit bugs or a feature request](https://gitlab.com/demsking/oremi-weather-agent/issues)
+1. [Submit bugs or a feature request](https://gitlab.com/demsking/oremi-ojo/issues)
    and help us verify fixes as they are checked in
 2. Create your working branch from the `dev` branch:
    `git checkout dev -b feature/my-awesome-feature`
 3. Write code for a bug fix or for your new awesome feature
 4. Write test cases for your changes
-5. [Submit merge requests](https://gitlab.com/demsking/oremi-weather-agent/merge_requests)
+5. [Submit merge requests](https://gitlab.com/demsking/oremi-ojo/merge_requests)
    for bug fixes and features and discuss existing proposals

@@ -1,12 +1,12 @@
 import asyncio
 
-from weather.core.geo import _get_nominatim_http_client
-from weather.core.settings import Settings
-from weather.core.settings import get_settings
+from ojo.core.geo import _get_nominatim_http_client
+from ojo.core.settings import Settings
+from ojo.core.settings import get_settings
 
 
 def test_user_agent_setting_can_be_configured_from_environment(monkeypatch):
-  monkeypatch.setenv('OREMI_WEATHER_USER_AGENT', 'custom-weather-agent/1.0')
+  monkeypatch.setenv('OREMI_OJO_USER_AGENT', 'custom-weather-agent/1.0')
 
   settings = Settings()
 
@@ -14,7 +14,7 @@ def test_user_agent_setting_can_be_configured_from_environment(monkeypatch):
 
 
 def test_nominatim_http_client_uses_configured_user_agent(monkeypatch):
-  monkeypatch.setenv('OREMI_WEATHER_USER_AGENT', 'custom-weather-agent/2.0')
+  monkeypatch.setenv('OREMI_OJO_USER_AGENT', 'custom-weather-agent/2.0')
   get_settings.cache_clear()
   _get_nominatim_http_client.cache_clear()
 

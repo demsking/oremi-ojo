@@ -13,9 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 from fastapi.testclient import TestClient
-
 from weather import app
-from weather.core.package import STATIC_DIR
+
+from ojo.core.package import STATIC_DIR
 
 
 HTDOCS_INDEX_FILE = STATIC_DIR / 'index.html'

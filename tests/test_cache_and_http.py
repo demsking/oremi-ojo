@@ -17,7 +17,7 @@ def load_module(module_name: str, relative_path: str):
   return module
 
 
-cache_module = load_module('weather.utils.cache', 'weather/utils/cache.py')
+cache_module = load_module('ojo.utils.cache', 'weather/utils/cache.py')
 
 SmartCache = cache_module.SmartCache
 
