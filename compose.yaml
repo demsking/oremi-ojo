@@ -1,0 +1,16 @@
+---
+name: dev-oremi-weather-agent
+
+services:
+  ollama:
+    tty: true
+    image: ollama/ollama
+    restart: always
+    runtime: nvidia
+    volumes:
+      - ~/.ollama:/root/.ollama
+    ports:
+      - 11436:11434
+    environment:
+      CUDA_VISIBLE_DEVICES: 0
+...

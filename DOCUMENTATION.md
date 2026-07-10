@@ -4,7 +4,7 @@ server-related information. Built with FastAPI and designed to run in a Docker
 container, Oremi Weather Agent provides developers with easy access to accurate
 weather and geocoding data.
 
-![Oremi Weather Agent Logo](logo.jpg)
+![Oremi Weather Agent Logo](./static/logo.jpg)
 
 Release notes are available in [CHANGELOG.md](https://gitlab.com/demsking/oremi-weather-agent/blob/main/CHANGELOG.md).
 
@@ -19,7 +19,9 @@ Release notes are available in [CHANGELOG.md](https://gitlab.com/demsking/oremi-
 - **Geocoding**: Perform forward and reverse geocoding to find locations by
   name, address, or coordinates.
 - **Generative Responses**: Use natural language queries to retrieve weather,
-  air quality, or pollen data for specific locations.
+  air quality, or pollen data for specific locations through `/agent/message`.
+- **Alert Routing**: Send an alert-focused request to `/agent/message` with
+  route metadata in the request context to switch to the alert generator.
 - **Multilingual Output Pipeline**: Messages are generated in English first and
   translated to the detected/requested language.
 - **Multi-Service & Multi-Location Queries**: One query can combine weather,
@@ -66,10 +68,8 @@ services:
     image: demsking/oremi-weather-agent
     depends_on:
       - ollama
-    volumes:
-      - ~/.config/oremi-weather-agent:/var/cache/oremi-weather-agent
     environment:
-      OLLAMA_BASEURL: http://ollama:11434
+      OREMI_WEATHER_OLLAMA_BASE_URL: http://ollama:11434
 
   ollama:
     image: ollama/ollama
@@ -91,36 +91,80 @@ When configuring **Oremi Weather Agent**, several environment variables are used
 control its behavior and connect with external services. Below is a breakdown
 of these variables, grouped by their purpose.
 
-### HTTP Configuration
+### Server Configuration
 
-- **HOST**: The host address on which the application will listen. Default is `"127.0.0.1"`.
-- **PORT**: The port number on which the application will listen. Default is `1777`.
-- **USER_AGENT**: User agent string for HTTP requests. This string identifies
-  the application and its version in HTTP requests. Default is
-  `"<APP_NAME>/<APP_VERSION>"`.
+- **OREMI_WEATHER_SERVER_HOST**: The host address on which the application will listen. Default is `"127.0.0.1"`.
+- **OREMI_WEATHER_SERVER_PORT**: The port number on which the application will listen. Default is `1777`.
+- **OREMI_WEATHER_API_PREFIX**: Base path for the API and docs routes. Default is `"/"`.
+- **OREMI_WEATHER_REQUEST_TIMEOUT**: Global HTTP timeout in seconds for external requests. Default is `30.0`.
+- **OREMI_WEATHER_USER_AGENT**: User-Agent header sent to external HTTP services such as Nominatim. Default is `"oremi-weather-agent/<version> (https://gitlab.com/demsking/oremi-weather-agent)"`.
 
 ### Caching Configuration
 
-These variables control HTTP request behavior and caching settings.
+These variables control internal LLM caching and response generation.
 
-- **CACHE_DIR**:
-  The directory in which to store cached data. Defaults to `'/usr/local/cache'`.
+- **OREMI_WEATHER_CACHE_ENABLED**: Enables the bounded internal cache. Default is `true`.
+- **OREMI_WEATHER_CACHE_MAX_ENTRIES**: Maximum number of cached entries kept in memory. Default is `512`.
+- **OREMI_WEATHER_CACHE_LLM_TTL_SECONDS**: TTL in seconds for cacheable LLM calls. Default is `300.0`.
 
 ### Ollama Configuration
 
-- **OLLAMA_BASEURL**: Base URL of the Ollama API. Required for communication with Ollama services.
-- **OLLAMA_MODEL**: Model name to use for Ollama services. It must support Tools. Default is `"qwen2.5:3b"`.
+- **OREMI_WEATHER_OLLAMA_BASE_URL**: Base URL of the Ollama API. Required when using an `ollama:` model.
+- **OREMI_WEATHER_LLM_MODEL**: Model name to use for the agent. If it starts with `ollama:`, the prefix is stripped before the Ollama client is created. Default is `"ollama:qwen3.5:2b"`.
+- **OREMI_WEATHER_LLM_REQUEST_TIMEOUT**: Timeout in seconds for LLM requests. Default is `15`.
+- **OREMI_WEATHER_LLM_TEMPERATURE**: Sampling temperature used by the agent. Default is `0.3`.
+- **OREMI_WEATHER_MAX_RESPONSE_TOKENS**: Maximum number of generated tokens. Default is `500`.
+- **OREMI_WEATHER_LLM_SYSTEM_PROMPT**: System prompt for the agent. Default is the bundled prompt.
 
 ### API and Logging Configuration
 
-These variables control the API root path, logging behavior, and server settings.
+- **OREMI_WEATHER_LOG_FILE**: Path to the log file for storing application logs. Empty defaults to console.
+- **OREMI_WEATHER_LOG_LEVEL**: Controls the verbosity of logs. Options: `'DEBUG'`, `'INFO'`, `'WARNING'`, `'ERROR'`, `'CRITICAL'`. Default is `'INFO'`.
 
-- **ROOT_PATH**:
-  Defines the base URL path for all API routes. Defaults to `'/'`.
+## MCP Integration
 
-- **LOG_FILE**:
-  Path to the log file for storing application logs. Empty defaults to console.
+Oremi Weather Agent exposes a Model Context Protocol server.
 
-- **LOG_LEVEL**:
-  Controls the verbosity of logs. Options: `'DEBUG'`, `'INFO'`, `'WARNING'`,
-  `'ERROR'`, `'CRITICAL'`. Defaults to `'INFO'`.
+The MCP HTTP transport is mounted at:
+
+- `GET /mcp`
+- `POST /mcp`
+- `DELETE /mcp`
+
+The MCP tool catalog is generated from the Oremi Weather Agent API routes that
+belong to these tags:
+
+- `Forecast Endpoints`
+- `Geocode Endpoints`
+
+The following tags are intentionally excluded from MCP tools:
+
+- `Agent Endpoints`
+- `Server Endpoints`
+
+The MCP server is configured in HTTP mode and reuses the Oremi Weather Agent
+app's OpenAPI schema, so tool descriptions stay in sync with the public API.
+Response schemas are described in full for better client generation and
+assistant planning.
+
+## Development
+
+See the [contribution guide](https://gitlab.com/demsking/oremi-weather/-/blob/main/CONTRIBUTING.md)
+for development environment and contribution guidance.
+
+## Versioning
+
+Oremi Weather Agent follows [Semantic Versioning](https://semver.org/). Display the
+installed version with:
+
+```bash
+oremi-weather-agent --version
+```
+
+## License
+
+Copyright 2026 Sébastien Demanou. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0. See the
+[LICENSE](https://gitlab.com/demsking/oremi-weather/-/blob/main/LICENSE) for the
+complete license text.

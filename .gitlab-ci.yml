@@ -21,17 +21,7 @@ variables:
   UV_LINK_MODE: copy
   UV_CACHE_DIR: .uv-cache
   GIT_SUBMODULE_STRATEGY: recursive
-
-# docker-build:
-#   stage: build
-#   image: docker:latest
-#   services:
-#     - docker:dind
-#   script:
-#     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-#     - make docker-build
-#   only:
-#     - main
+  PYTHONPATH: .:.venv/lib/python3.12/site-packages:$PYTHONPATH
 
 sast:
   stage: test
@@ -44,9 +34,10 @@ pages:
   image: ghcr.io/astral-sh/uv:$UV_VERSION-python$PYTHON_VERSION-$BASE_LAYER
   script:
     - uv sync
-    - export PYTHONPATH=.:.venv/lib/python3.12/site-packages:$PYTHONPATH
-    - python scripts/generate-openapi.py > doc/openapi.json
-    - cp -r doc/ public/
+    - mkdir -p public/static/
+    - mv htdocs/* public/static/
+    - python scripts/generate-docs-files.py
+    - cp htdocs/* public/
     - ls -lah public/
     - echo "The documentation site will be deployed to $CI_PAGES_URL"
   artifacts:

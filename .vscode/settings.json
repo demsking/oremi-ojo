@@ -1,15 +1,15 @@
 {
-  "pylint.importStrategy": "fromEnvironment",
-  "editor.formatOnPaste": false,
-  "editor.formatOnSave": true,
-  "editor.formatOnType": true,
+  "editor.detectIndentation": false,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "files.exclude": {
     "**/.devbox": true,
     "**/.directory": true,
     "**/.coverage": true,
     "**/.direnv": true,
-    "**/.nix-node": true,
     "**/.ruff_cache": true,
     "**/.venv": true,
     "**/.pytest_cache": true,
@@ -17,40 +17,30 @@
     "**/__pycache__": true,
     "**/dist": true
   },
-  "python.analysis.typeCheckingMode": "standard",
-  "python.analysis.diagnosticSeverityOverrides": {
-    "reportMissingTypeStubs": "information",
-    "reportPrivateImportUsage": "none"
-  },
-  "python.analysis.exclude": [
-    ".venv/**"
-  ],
-  "python.analysis.autoImportCompletions": true,
-  "python.analysis.completeFunctionParens": true,
-  "python.analysis.diagnosticMode": "workspace",
-  "python.analysis.importFormat": "relative",
-  "python.analysis.inlayHints.functionReturnTypes": true,
-  "python.analysis.inlayHints.pytestParameters": true,
-  "python.analysis.inlayHints.variableTypes": true,
-  "python.analysis.fixAll": [
-    "source.convertImportFormat"
-  ],
-  "python.testing.pytestEnabled": true,
-  "python.testing.unittestEnabled": false,
-  "python.terminal.activateEnvInCurrentTerminal": true,
-  "terminal.integrated.profiles.linux": {
-    "sh": {
-      "path": "/bin/sh"
-    }
-  },
-  "terminal.integrated.defaultProfile.linux": "sh",
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff"
-  },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "python.envFile": "${workspaceFolder}/.devcontainer/.env",
-  "python.terminal.shellIntegration.enabled": false,
-  "python.testing.pytestArgs": [
-    "tests"
-  ]
+  "python.envFile": "${workspaceFolder}/.env.example",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  "[json]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  "[yaml]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  "[dockerfile]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  "[makefile]": {
+    "editor.insertSpaces": false
+  }
 }

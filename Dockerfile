@@ -19,11 +19,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --no-dev --locked --no-install-project --compile-bytecode
 
-# Sync the project
-COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-dev --locked
-
 #
 ## Stage 2: Final
 FROM python:3.12-alpine3.21
@@ -31,34 +26,27 @@ FROM python:3.12-alpine3.21
 # Set the shell to /bin/ash and enable pipefail
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
-ENV PATH="/opt/oremi-weather-agent/bin:$PATH"
-ENV PYTHONPATH="/opt/oremi-weather-agent:/opt/oremi-weather-agent/.venv/lib/python3.12/site-packages"
+RUN apk add --no-cache curl tzdata
+RUN adduser -D -h /oremi oremi && mkdir -p /oremi/data
+
+WORKDIR /oremi
+
+COPY --from=builder /app/.venv /oremi/.venv
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+
+COPY --chown=oremi:oremi DOCUMENTATION.md pyproject.toml LICENSE ./
+COPY --chown=oremi:oremi htdocs/ ./htdocs/
+COPY --chown=oremi:oremi weather/ ./weather/
+
+ENV PATH="/oremi/.venv/bin:$PATH"
+ENV PYTHONPATH="/oremi:/oremi/.venv/lib/python3.12/site-packages"
 ENV PYTHONUNBUFFERED="1"
-ENV PYTHONDONTWRITEBYTECODE="1"
 
-ENV TZ=UTC
-ENV HOST="0.0.0.0"
+ENV OREMI_WEATHER_LOG_LEVEL="INFO"
+ENV OREMI_WEATHER_SERVER_HOST="0.0.0.0"
 
-ENV CACHE_DIR="/var/cache/oremi-weather-agent"
-
-# Install dependencies
-RUN apk update \
-  && apk add --no-cache tzdata
-
-# Copy the environment, but not the source code
-COPY --from=builder --chown=oremi:oremi /app/.venv /opt/oremi-weather-agent/.venv
-
-# Binaries
-COPY bin/* /opt/oremi-weather-agent/bin/
-RUN chmod +x /opt/oremi-weather-agent/bin/* \
-  && mkdir -p /var/cache/oremi-weather-agent
-
-# Copy application files
-COPY server/ /opt/oremi-weather-agent/server
-COPY pyproject.toml LICENSE DOCUMENTATION.md /opt/oremi-weather-agent/
-
-# Expose the port
 EXPOSE 1777
 
-# Execute the application
-CMD ["oremi-weather-agent"]
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD curl -f http://localhost:1777/health/ || exit 1
+
+CMD ["python", "/oremi/weather"]

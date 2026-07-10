@@ -7,17 +7,37 @@
       "request": "launch",
       "module": "uvicorn",
       "args": [
-        "server:api",
+        "weather:app",
         "--reload",
-        "--host", "0.0.0.0",
-        "--port", "1777"
+        "--reload-dir",
+        "weather",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "1777"
       ],
-      "jinja": true,
-      "justMyCode": false,
-      "envFile": "${workspaceFolder}/.devcontainer/.env",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.example",
       "env": {
-        "LOG_LEVEL": "debug"
-      }
+        "OREMI_WEATHER_OLLAMA_BASE_URL": "http://localhost:11436",
+        "OREMI_WEATHER_LOG_LEVEL": "DEBUG"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Pytest",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests",
+        "-v"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.example",
+      "console": "integratedTerminal",
+      "justMyCode": true
     }
   ]
 }
