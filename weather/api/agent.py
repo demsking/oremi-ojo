@@ -78,6 +78,46 @@ PAYLOAD_EXAMPLES: dict[str, Example] = {
       {'message': 'Quel temps fait-il à Paris ?', 'context': OREMI_DEVICE_PREFERENCES_EXAMPLE}
     ),
   },
+  'Sunset time (EN)': {
+    'summary': 'Sunset time (EN)',
+    'description': 'Asks for the expected sunset time and evening weather conditions.',
+    'value': ProcessRequest.model_validate(
+      {
+        'message': 'What time does the sun set in Reykjavik tonight?',
+        'context': {'timezone': 'Atlantic/Reykjavik', 'temperature_unit': 'celsius'},
+      }
+    ),
+  },
+  'Wind and sunrise (EN)': {
+    'summary': 'Wind and sunrise (EN)',
+    'description': 'Requests current wind strength and sunrise timing for a specific location.',
+    'value': ProcessRequest.model_validate(
+      {
+        'message': 'How windy is it in Nairobi this morning and when does sunrise happen?',
+        'context': {'timezone': 'Africa/Nairobi', 'temperature_unit': 'celsius'},
+      }
+    ),
+  },
+  'Lever du soleil et vitesse du vent (FR)': {
+    'summary': 'Lever du soleil (FR)',
+    'description': "Demande d'informations sur le lever du soleil et le vent.",
+    'value': ProcessRequest.model_validate(
+      {
+        'message': "À quelle heure le soleil se lève à Douala aujourd'hui, et quel est le la vitesse du vent ?",
+        'context': {'timezone': 'Africa/Douala', 'temperature_unit': 'celsius'},
+      }
+    ),
+  },
+  'Coucher du soleil (FR)': {
+    'summary': 'Coucher du soleil (FR)',
+    'description': "Demande d'informations sur le coucher du soleil.",
+    'value': ProcessRequest.model_validate(
+      {
+        'message': "À quelle heure le soleil se couche à Yaoundé aujourd'hui ?",
+        'context': {'timezone': 'Africa/Douala', 'temperature_unit': 'celsius'},
+      }
+    ),
+  },
   # --- POLLEN ---
   'Pollen count (EN)': {
     'summary': 'Pollen & Allergen report (EN)',
