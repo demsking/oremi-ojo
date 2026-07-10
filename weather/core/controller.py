@@ -214,6 +214,60 @@ class Controller:
 
     return f'Pollen terminology glossary (mandatory):\n{glossary}\n'
 
+  @staticmethod
+  def _normalize_language_code(language: str | None) -> str:
+    normalized = (language or '').strip().lower().replace('_', '-')
+
+    if not normalized:
+      return 'en'
+
+    return normalized.split()[0].strip('`"\'.,;:!?()[]{}') or 'en'
+
+  @staticmethod
+  def _looks_like_language_code(language: str) -> bool:
+    return bool(language) and ' ' not in language and all(part.isalpha() for part in language.split('-'))
+
+  @staticmethod
+  def _language_instruction(target_language: str) -> str:
+    normalized = Controller._normalize_language_code(target_language)
+
+    if normalized.startswith('fr'):
+      return 'The user request is written in French. Reply in French.'
+
+    if normalized.startswith('en'):
+      return 'The user request is written in English. Reply in English.'
+
+    return f'The user request is written in {normalized}. Reply in the same language.'
+
+  async def detect_language(self, user_input: str) -> str:
+    result = await self.language_detector_agent.generate(user_input)
+    raw_language = Controller._extract_generated_text(result).strip().lower()
+    normalized = Controller._normalize_language_code(raw_language)
+
+    if (
+      not raw_language
+      or raw_language == Controller.DEFAULT_RESPONSE_TEXT.lower()
+      or not Controller._looks_like_language_code(normalized)
+    ):
+      return 'en'
+
+    return normalized
+
+  async def _translate_message(self, message: str, target_language: str) -> str:
+    normalized = Controller._normalize_language_code(target_language)
+
+    if normalized.startswith('en'):
+      return message
+
+    prompt = (
+      f'Target language: {normalized}.\n{Controller._translation_glossary_instruction(normalized)}Original message:\n{message}'
+    )
+
+    result = await self.translation_agent.generate(prompt)
+    translated_message = Controller._extract_generated_text(result)
+
+    return translated_message if translated_message != Controller.DEFAULT_RESPONSE_TEXT else message
+
   async def generate_response(
     self,
     user_input: str,
@@ -223,6 +277,7 @@ class Controller:
     data: ResponsePayloadModel,
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
+    language: str | None = None,
   ) -> 'Controller.Response[ResponsePayloadModel]':
     prompt_data = self._format_prompt_data(data)
 
@@ -238,6 +293,7 @@ class Controller:
 
     result = await self.response_agent.generate(prompt)
     message = Controller._extract_generated_text(result)
+    message = await self._translate_message(message, language or await self.detect_language(user_input))
 
     logger.debug(f'Generated response: {message}')
 
@@ -257,6 +313,7 @@ class Controller:
     data: ResponseData | NoneType,
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
+    language: str | None = None,
   ) -> 'Controller.AlertResponse[ResponseData | NoneType]':
     prompt_data = self._format_prompt_data(data)
 
@@ -265,6 +322,7 @@ class Controller:
 
     result = await self.alerts_response_agent.generate(prompt)
     message = Controller._extract_generated_text(result)
+    message = await self._translate_message(message, language)
 
     logger.debug(f'Generated alert response: {message}')
 

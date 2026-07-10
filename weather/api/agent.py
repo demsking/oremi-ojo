@@ -421,6 +421,7 @@ async def process_user_input(
       if providers and requested_services:
         primary_location = locations[0]
         provider = ', '.join(sorted(providers))
+        language = await controller.detect_language(user_request)
 
         if _is_alert_route(context):
           service = _primary_service(requested_services)
@@ -435,6 +436,7 @@ async def process_user_input(
             service_data,
             temperature_unit,
             dateinfo,
+            language=language,
           )
 
           return ProcessResponse(
@@ -454,6 +456,7 @@ async def process_user_input(
           data,
           temperature_unit,
           dateinfo,
+          language=language,
         )
 
         return ProcessResponse(
