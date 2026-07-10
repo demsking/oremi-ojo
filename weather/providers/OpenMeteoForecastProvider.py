@@ -54,6 +54,16 @@ class OpenMeteoForecastProvider(Provider):
 
     return directions[index]
 
+  @staticmethod
+  def format_unix_time(value: int | None, utc_offset_seconds: int) -> str | None:
+    if value is None:
+      return None
+
+    utc_time = datetime.datetime.fromtimestamp(value, tz=datetime.UTC)
+    local_time = utc_time + datetime.timedelta(seconds=utc_offset_seconds)
+
+    return local_time.time().isoformat()
+
   async def fetch_daily(
     self,
     *,
@@ -123,7 +133,9 @@ class OpenMeteoForecastProvider(Provider):
     responses = self.openmeteo.weather_api(url, params=params)
 
     # Process daily data. The order of variables needs to be the same as requested.
-    daily = responses[0].Daily()
+    response = responses[0]
+    daily = response.Daily()
+    utc_offset_seconds = response.UtcOffsetSeconds()
     daily_data = {}
 
     for i, var_name in enumerate(daily_vars):
@@ -133,7 +145,12 @@ class OpenMeteoForecastProvider(Provider):
       else:
         values = variable.ValuesAsNumpy()  # type: ignore
 
-      daily_data[var_name] = values[0].item() if len(values) > 0 else None
+      value = values[0].item() if len(values) > 0 else None
+
+      if var_name in ('sunrise', 'sunset'):
+        daily_data[var_name] = self.format_unix_time(value, utc_offset_seconds)
+      else:
+        daily_data[var_name] = value
 
     return DailyForecastData(**daily_data)
 
@@ -274,7 +291,7 @@ class OpenMeteoForecastProvider(Provider):
     hourly_variables: list[str] | None = None,
     daily_variables: list[str] | None = None,
   ) -> ForecastData:
-    daily_index, hourly_index, forecast, hourly_vars, daily_vars = await self._fetch_hourly(  # pyright: ignore
+    daily_index, hourly_index, forecast, hourly_vars, _daily_vars = await self._fetch_hourly(  # pylint: disable=unused-variable
       lon=lon,
       lat=lat,
       timezone=timezone,

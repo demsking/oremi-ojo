@@ -13,8 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 import datetime
-import logging
 import pytest
+
+import numpy as np
 
 from weather.core.controller import Controller
 from weather.providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
@@ -26,9 +27,68 @@ class DummyController:
     pass
 
 
+def test_format_unix_time_applies_utc_offset():
+  assert OpenMeteoForecastProvider.format_unix_time(0, 3600) == '01:00:00'
+
+
+class FakeOpenMeteoVariable:
+  def __init__(self, value):
+    self.value = value
+
+  def ValuesInt64AsNumpy(self):
+    return np.array([self.value], dtype=np.int64)
+
+  def ValuesAsNumpy(self):
+    return np.array([self.value])
+
+
+class FakeOpenMeteoDaily:
+  def __init__(self, values):
+    self.values = values
+
+  def Variables(self, index):
+    return FakeOpenMeteoVariable(self.values[index])
+
+
+class FakeOpenMeteoResponse:
+  def __init__(self, values, utc_offset_seconds):
+    self.values = values
+    self.utc_offset_seconds = utc_offset_seconds
+
+  def Daily(self):
+    return FakeOpenMeteoDaily(self.values)
+
+  def UtcOffsetSeconds(self):
+    return self.utc_offset_seconds
+
+
+class FakeOpenMeteoClient:
+  def weather_api(self, url, params):
+    return [FakeOpenMeteoResponse([0, 3600, 23], utc_offset_seconds=3600)]
+
+
+@pytest.mark.asyncio
+async def test_fetch_daily_formats_sun_times_as_local_clock_values():
+  provider = OpenMeteoForecastProvider(DummyController())  # type: ignore
+  provider.openmeteo = FakeOpenMeteoClient()
+  now = datetime.datetime(2026, 7, 10)
+  dateinfo = Controller.DateInfo(period='daily', start=now, end=now, timezone='Europe/Paris')
+
+  res = await provider.fetch_daily(
+    lon=2.3483915,
+    lat=48.8534951,
+    dateinfo=dateinfo,
+    temperature_unit='celsius',
+    daily_variables=['sunrise', 'sunset', 'weather_code'],
+  )
+
+  assert res.sunrise == '01:00:00'
+  assert res.sunset == '02:00:00'
+  assert res.weather_code == 23
+
+
 @pytest.mark.asyncio
 async def test_forecast_provider_dynamic_variables():
-  logger = logging.getLogger('test')
   controller = DummyController()
   provider = OpenMeteoForecastProvider(controller)  # type: ignore
 
@@ -70,7 +130,6 @@ async def test_forecast_provider_dynamic_variables():
 
 @pytest.mark.asyncio
 async def test_air_quality_provider_dynamic_variables():
-  logger = logging.getLogger('test')
   controller = DummyController()
   provider = OpenMeteoAirQualityProvider(controller)  # type: ignore
 
