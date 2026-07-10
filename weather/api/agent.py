@@ -18,7 +18,6 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from fastapi import Query
 from fastapi import Request
 from fastapi import status
 from fastapi.openapi.models import Example
@@ -36,7 +35,7 @@ from ..tools.service_tool import GetServiceTool
 
 
 API_TAG_METADATA = {
-  'name': 'Agents Processing',
+  'name': 'Agent Processing',
   'description': (
     'Endpoints for generating climate information, such as weather, air quality, '
     'and pollen data, based on user input. These endpoints process queries to '
@@ -224,7 +223,7 @@ def _primary_service(services: list[GetServiceTool.Service]) -> GetServiceTool.S
 
 
 @router.post(
-  path='/message',
+  path='/chat',
   summary='Process a natural-language request',
   response_model=ProcessResponse,
   status_code=status.HTTP_200_OK,
@@ -428,30 +427,3 @@ async def process_user_input(
 
     raise HTTPException(status_code=400, detail='No location found for user input')
   raise HTTPException(status_code=460, detail='Unable to identify service for user input')
-
-
-@router.get(
-  '/location',
-  summary='Extract locations from a natural-language request',
-  responses={
-    404: {
-      'description': 'No location found for user input',
-      'content': {'application/json': {'example': {'detail': 'No location found for user input'}}},
-    },
-  },
-)
-async def extract_locations(
-  request: Request,
-  q: str = Query(
-    description='The user question to extract locations from.',
-    examples=['What is the weather in Paris today?', 'Quel temps fait-il à Douala ?'],
-  ),
-  limit: int = Query(default=3, ge=1, le=10, description='Maximum number of locations to return.'),
-) -> list[Location]:
-  controller: Controller = request.app.state.controller
-  locations = await controller.location_agent.get_user_input_locations(q, limit=limit)
-
-  if locations:
-    return locations
-
-  raise HTTPException(status_code=404, detail='No location found for user input')
