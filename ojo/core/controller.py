@@ -64,11 +64,11 @@ class Controller:
     self.response_agent = assistant.create_agent(
       system=(
         "You are a smart weather assistant. Respond to the user's weather request in a natural, clear, and human-like way, "
-        'Respond only in English. Use the forecast data provided in the context to generate your response.\n'
+        'Use the forecast data provided in the context to generate your response.\n'
         'Do not use text in parentheses. Provide direct answers only.\n'
         "Do not start with greetings like 'Hello' or the user's name. Go straight to the point.\n"
         'Your response must:\n'
-        '- Be conversational and clear in English\n'
+        "- Be conversational and clear in the user's requested language\n"
         '- Avoid listing raw data\n'
         "- Subtly mention the source of the data by extracting the provider's name from the context\n"
         '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
@@ -89,7 +89,7 @@ class Controller:
     self.alerts_response_agent = assistant.create_agent(
       system=(
         'You are an emergency alert specialist. Deliver urgent notifications about weather, pollen, and air quality risks. '
-        'Prioritize immediate dangers and actionable advice. Respond only in English using active alerts.\n\n'
+        'Prioritize immediate dangers and actionable advice using active alerts.\n\n'
         'Critical response rules:\n'
         # '1. URGENCY FIRST:\n'
         # '   - Start with the most severe threat\n'
@@ -109,7 +109,7 @@ class Controller:
         '3. ACTIONS:\n'
         '   Always end with one concrete recommendation\n\n'
         'Your response must:\n'
-        '- Be conversational and clear in English\n'
+        "- Be conversational and clear in the user's requested language\n"
         '- Avoid listing raw data\n'
         "- Subtly mention the source of the data by extracting the provider's name from the context\n"
         '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
@@ -123,17 +123,6 @@ class Controller:
         '- Multiple alerts of same type/severity\n'
         '- Avoid any formating or new lines.\n'
         'Your responses will be used by a text-to-speech (TTS) service. Make sure they are easy to pronounce and suitable for basic TTS engines.\n'
-      )
-    )
-
-    self.translation_agent = assistant.create_agent(
-      system=(
-        'You are an expert translator for weather and health-risk messages. '
-        'Translate from English into the target language with natural, idiomatic phrasing for native speakers. '
-        'Avoid literal word-by-word translation and awkward calques. '
-        'Preserve factual meaning, numbers, units, location names, and provider names. '
-        'Keep the style concise and suitable for text-to-speech. '
-        'Return only the translated text with no explanations.'
       )
     )
 
@@ -239,6 +228,17 @@ class Controller:
 
     return f'The user request is written in {normalized}. Reply in the same language.'
 
+  @staticmethod
+  def _response_language_prompt(target_language: str | None) -> str:
+    normalized = Controller._normalize_language_code(target_language)
+    instruction = Controller._language_instruction(normalized)
+    glossary = Controller._translation_glossary_instruction(normalized)
+
+    if glossary:
+      return f'{instruction}\n{glossary}'
+
+    return instruction
+
   async def detect_language(self, user_input: str) -> str:
     result = await self.language_detector_agent.generate(user_input)
     raw_language = Controller._extract_generated_text(result).strip().lower()
@@ -253,21 +253,6 @@ class Controller:
 
     return normalized
 
-  async def _translate_message(self, message: str, target_language: str) -> str:
-    normalized = Controller._normalize_language_code(target_language)
-
-    if normalized.startswith('en'):
-      return message
-
-    prompt = (
-      f'Target language: {normalized}.\n{Controller._translation_glossary_instruction(normalized)}Original message:\n{message}'
-    )
-
-    result = await self.translation_agent.generate(prompt)
-    translated_message = Controller._extract_generated_text(result)
-
-    return translated_message if translated_message != Controller.DEFAULT_RESPONSE_TEXT else message
-
   async def generate_response(
     self,
     user_input: str,
@@ -280,9 +265,11 @@ class Controller:
     language: str | None = None,
   ) -> 'Controller.Response[ResponsePayloadModel]':
     prompt_data = self._format_prompt_data(data)
+    response_language = language or await self.detect_language(user_input)
 
     prompt = (
       f'User Request: {user_input}.\n'
+      f'{Controller._response_language_prompt(response_language)}\n'
       f'Provider: {provider}.\n'
       f'Services: {", ".join(services)}.\n'
       f'{prompt_data}.\n'
@@ -293,7 +280,6 @@ class Controller:
 
     result = await self.response_agent.generate(prompt)
     message = Controller._extract_generated_text(result)
-    message = await self._translate_message(message, language or await self.detect_language(user_input))
 
     logger.debug(f'Generated response: {message}')
 
@@ -317,12 +303,14 @@ class Controller:
   ) -> 'Controller.AlertResponse[ResponseData | NoneType]':
     prompt_data = self._format_prompt_data(data)
 
-    prompt = f'Provider: {provider}.\nProvider Response: {prompt_data}.\nTemperature Unit: {temperature_unit}\n'
+    prompt = (
+      f'{Controller._response_language_prompt(language)}\n'
+      f'Provider: {provider}.\nProvider Response: {prompt_data}.\nTemperature Unit: {temperature_unit}\n'
+    )
     prompt += Controller._date_prompt_context(dateinfo)
 
     result = await self.alerts_response_agent.generate(prompt)
     message = Controller._extract_generated_text(result)
-    message = await self._translate_message(message, language)
 
     logger.debug(f'Generated alert response: {message}')
 

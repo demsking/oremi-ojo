@@ -31,8 +31,8 @@ Project repository: https://gitlab.com/demsking/oremi-ojo
   air quality, or pollen data for specific locations through `/agent/message`.
 - **Alert Routing**: Send an alert-focused request to `/agent/message` with
   route metadata in the request context to switch to the alert generator.
-- **Multilingual Output Pipeline**: Messages are generated in English first and
-  translated to the detected/requested language.
+- **Multilingual Output**: Messages are generated directly in the
+  detected/requested language.
 - **Multi-Service & Multi-Location Queries**: One query can combine weather,
   air quality, and pollen requests across multiple locations.
 - **Structured Pollen Payload**: Pollen responses expose `units`,

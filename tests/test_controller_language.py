@@ -35,17 +35,13 @@ class FakeAgent:
 
 class FakeAssistant:
   def __init__(self):
-    self.response_agent = FakeAgent('It will be sunny.')
+    self.response_agent = FakeAgent('Il fera beau.')
     self.language_agent = FakeAgent('fr')
-    self.translation_agent = FakeAgent('Il fera beau.')
     self.tools_agent = FakeAgent()
 
   def create_agent(self, system: str):
     if 'Detect the language' in system:
       return self.language_agent
-
-    if 'Translate from English' in system:
-      return self.translation_agent
 
     return self.response_agent
 
@@ -84,7 +80,8 @@ def test_language_instruction_defaults_to_english():
 
 
 async def test_generate_response_uses_request_language():
-  controller = Controller(FakeAssistant())  # type: ignore[arg-type]
+  assistant = FakeAssistant()
+  controller = Controller(assistant)  # type: ignore[arg-type]
 
   response = await controller.generate_response(
     user_input='Quelle est la météo à Paris ?',
@@ -97,3 +94,24 @@ async def test_generate_response_uses_request_language():
   )
 
   assert response.message == 'Il fera beau.'
+  assert 'The user request is written in French. Reply in French.' in assistant.response_agent.prompts[0]
+
+
+async def test_generate_response_uses_provided_language_without_detection():
+  assistant = FakeAssistant()
+  controller = Controller(assistant)  # type: ignore[arg-type]
+
+  response = await controller.generate_response(
+    user_input='Quelle est la météo à Paris ?',
+    provider='Open-Meteo',
+    location=_make_location(),
+    services=['weather'],
+    data=None,
+    temperature_unit='celsius',
+    dateinfo=None,
+    language='fr',
+  )
+
+  assert response.message == 'Il fera beau.'
+  assert assistant.language_agent.prompts == []
+  assert 'The user request is written in French. Reply in French.' in assistant.response_agent.prompts[0]

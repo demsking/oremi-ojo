@@ -38,8 +38,8 @@ Release notes are available in [CHANGELOG.md](https://gitlab.com/demsking/oremi-
   name, address, or coordinates.
 - **Generative Responses**: Use natural language queries to retrieve weather,
   air quality, or pollen data for specific locations.
-- **Multilingual Output Pipeline**: Responses are generated in English first,
-  then translated to the detected (or requested) output language.
+- **Multilingual Output**: Responses are generated directly in the detected
+  (or requested) output language.
 - **Multi-Service & Multi-Location Routing**: A single query can request
   weather, air quality, and pollen for one or several places.
 - **Structured Pollen Schema**: Pollen responses include `units`,
