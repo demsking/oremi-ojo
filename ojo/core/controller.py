@@ -181,7 +181,7 @@ class Controller:
       return ''
 
     if dateinfo.start == dateinfo.end:
-      today = datetime.now()
+      today = datetime.now(dateinfo.start.tzinfo).replace(second=0, microsecond=0)
 
       if dateinfo.start.date() == today.date():
         return f'Current Date and Time: {today}.'

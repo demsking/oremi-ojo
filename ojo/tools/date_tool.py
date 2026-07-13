@@ -316,7 +316,8 @@ class GetDateTool:
     if not GetDateTool._has_explicit_day_marker(user_input):
       return weather_tool_exec_current, current_time_zero, current_time_zero
 
-    results = await self.agent.query(f'User Request: {user_input}.\nCurrent date and time: {current_time}.')
+    current_time_minute = current_time.replace(second=0, microsecond=0)
+    results = await self.agent.query(f'User Request: {user_input}.\nCurrent date and time: {current_time_minute}.')
 
     if results:
       function_calls = [result.function for result in results]

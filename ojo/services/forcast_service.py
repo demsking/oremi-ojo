@@ -14,7 +14,8 @@
 # ==============================================================================
 import datetime  # use implicit import to enable datatime mocking
 import logging
-from typing import ClassVar, Literal
+from typing import ClassVar
+from typing import Literal
 from zoneinfo import ZoneInfo
 from zoneinfo import ZoneInfoNotFoundError
 

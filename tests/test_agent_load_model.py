@@ -5,6 +5,9 @@ from types import ModuleType
 
 import pytest
 import httpx
+from ollama import ChatResponse
+from ollama import GenerateResponse
+from ollama import Message
 from ollama import ResponseError
 from ollama import Tool
 from pydantic_ai.models.test import TestModel
@@ -30,8 +33,11 @@ def load_project_module(module_name: str):
 
 Settings = load_project_module('ojo.core.settings').Settings
 AgentClient = load_project_module('ojo.llm.agent').AgentClient
+OllamaAgent = load_project_module('ojo.llm.agent').OllamaAgent
+OllamaToolsAgent = load_project_module('ojo.llm.agent').OllamaToolsAgent
 PydanticGenerateAgent = load_project_module('ojo.llm.agent').PydanticGenerateAgent
 PydanticToolsAgent = load_project_module('ojo.llm.agent').PydanticToolsAgent
+SmartCache = load_project_module('ojo.utils.cache').SmartCache
 
 
 class FakeOllamaClient:
@@ -46,11 +52,33 @@ class FakeOllamaClient:
     if self.pull_error is not None:
       raise self.pull_error
 
-  async def generate(self, *, model: str, keep_alive: int, stream: bool = False):
-    self.calls.append(f'generate:{model}:{keep_alive}:{stream}')
+  async def generate(self, *, model: str, keep_alive: int | None = None, stream: bool = False, **kwargs):
+    if 'prompt' in kwargs:
+      self.calls.append(f'generate:{model}:{kwargs["prompt"]}:{stream}')
+    else:
+      self.calls.append(f'generate:{model}:{keep_alive}:{stream}')
 
     if self.generate_error is not None:
       raise self.generate_error
+
+    return GenerateResponse(response='Bonjour')
+
+  async def chat(self, model: str, *, messages, tools=None, stream: bool = False):
+    self.calls.append(f'chat:{model}:{messages[-1]["content"]}:{stream}')
+
+    return ChatResponse(
+      message=Message(
+        role='assistant',
+        tool_calls=[
+          Message.ToolCall(
+            function=Message.ToolCall.Function(
+              name='handle_context_location',
+              arguments={'location': 'Douala'},
+            )
+          )
+        ],
+      )
+    )
 
 
 def make_agent(fake_ollama_client: FakeOllamaClient) -> AgentClient:
@@ -106,6 +134,58 @@ async def test_pydantic_tools_agent_returns_ollama_compatible_tool_calls():
   assert result is not None
   assert result[0].function.name == 'handle_context_location'
   assert result[0].function.arguments == {'location': 'Douala'}
+
+
+async def test_ollama_generate_agent_caches_repeated_prompts():
+  fake_ollama_client = FakeOllamaClient()
+  cache = SmartCache(enabled=True, max_entries=8)
+  agent = OllamaAgent(
+    client=fake_ollama_client,
+    model='test-model',
+    system='test',
+    cache=cache,
+    cache_ttl_seconds=60.0,
+  )
+
+  first = await agent.generate('hello')
+  second = await agent.generate('hello')
+
+  assert first is not None
+  assert second is not None
+  assert first.response == 'Bonjour'
+  assert second.response == 'Bonjour'
+  assert fake_ollama_client.calls == ['generate:test-model:hello:False']
+  assert cache.stats.hits == 1
+
+
+async def test_ollama_tools_agent_caches_repeated_queries():
+  fake_ollama_client = FakeOllamaClient()
+  cache = SmartCache(enabled=True, max_entries=8)
+  agent = OllamaToolsAgent(
+    client=fake_ollama_client,
+    model='test-model',
+    system='test',
+    tools=[
+      Tool(
+        function=Tool.Function(
+          name='handle_context_location',
+          description='Handle context location',
+        )
+      )
+    ],
+    cache=cache,
+    cache_ttl_seconds=60.0,
+  )
+
+  first = await agent.query('weather in Douala')
+  second = await agent.query('weather in Douala')
+
+  assert first is not None
+  assert second is not None
+  assert first[0].function.arguments == {'location': 'Douala'}
+  assert second[0].function.arguments == {'location': 'Douala'}
+  assert fake_ollama_client.calls == ['chat:test-model:weather in Douala:False']
+  assert cache.stats.hits == 1
 
 
 async def test_load_model_continues_after_read_timeout():

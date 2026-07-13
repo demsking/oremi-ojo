@@ -92,6 +92,8 @@ class AgentClient(Generic[OutputModel]):
         client=self.ollama_client,
         model=self.settings.ollama_model_name,
         system=system,
+        cache=self.cache,
+        cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
       )
 
     if self.model is None:
@@ -99,8 +101,11 @@ class AgentClient(Generic[OutputModel]):
 
     return PydanticGenerateAgent(
       model=self.model,
+      model_identifier=self.settings.llm_model,
       model_settings=self.model_settings,
       system=system,
+      cache=self.cache,
+      cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
     )
 
   def create_tools_agent(
@@ -115,6 +120,8 @@ class AgentClient(Generic[OutputModel]):
         model=self.settings.ollama_model_name,
         tools=tools,
         system=system,
+        cache=self.cache,
+        cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
       )
 
     if self.model is None:
@@ -122,9 +129,12 @@ class AgentClient(Generic[OutputModel]):
 
     return PydanticToolsAgent(
       model=self.model,
+      model_identifier=self.settings.llm_model,
       model_settings=self.model_settings,
       tools=tools,
       system=system,
+      cache=self.cache,
+      cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
     )
 
   async def load_model(self) -> None:
@@ -335,10 +345,14 @@ class OllamaAgent:
     client: AsyncClient,
     model: str,
     system: str | None = None,
+    cache: SmartCache | None = None,
+    cache_ttl_seconds: float = 0.0,
   ) -> None:
     self.client = client
     self.model = model
     self.system = system
+    self.cache = cache
+    self.cache_ttl_seconds = cache_ttl_seconds
 
   async def generate(
     self,
@@ -347,18 +361,40 @@ class OllamaAgent:
   ) -> GenerateResponse | None:
     logger.debug(f'Generating with prompt:\n{prompt}')
 
-    try:
-      return await self.client.generate(
-        model=self.model,
-        prompt=prompt,
-        system=self.system or '',
-        stream=False,
-        think=False,
-        options=options,
+    cache_key = (
+      self.cache.make_key(
+        'llm',
+        {
+          'agent': type(self).__name__,
+          'model': self.model,
+          'system': self.system,
+          'prompt': prompt,
+          'options': options.model_dump(exclude_none=True) if options else None,
+        },
       )
-    except ResponseError as error:
-      logger.error('Ollama Error: %s', error.error)
-      return None
+      if self.cache is not None
+      else None
+    )
+
+    async def run_request() -> GenerateResponse | None:
+      try:
+        return await self.client.generate(
+          model=self.model,
+          prompt=prompt,
+          system=self.system or '',
+          stream=False,
+          think=False,
+          options=options,
+        )
+      except ResponseError as error:
+        logger.error('Ollama Error: %s', error.error)
+        return None
+
+    return (
+      await self.cache.get_or_set(cache_key, self.cache_ttl_seconds, run_request)
+      if self.cache is not None and cache_key is not None
+      else await run_request()
+    )
 
 
 class UnavailableOllamaAgent:
@@ -387,11 +423,19 @@ class OllamaToolsAgent:
     model: str,
     tools: list[Tool],
     system: str | None = None,
+    cache: SmartCache | None = None,
+    cache_ttl_seconds: float = 0.0,
   ) -> None:
     self.client = client
     self.model = model
     self.system = system
     self.tools = tools
+    self.cache = cache
+    self.cache_ttl_seconds = cache_ttl_seconds
+
+  @staticmethod
+  def _tool_payload(tools: list[Tool]) -> list[dict[str, Any]]:
+    return [tool.model_dump(exclude_none=True) for tool in tools]
 
   async def query(
     self,
@@ -399,6 +443,7 @@ class OllamaToolsAgent:
     tools: list[Tool] | None = None,
   ) -> Sequence[Message.ToolCall] | None:
     messages: list[Message] = []
+    active_tools = tools or self.tools
 
     if self.system:
       messages.append(Message(role='system', content=self.system))
@@ -408,18 +453,39 @@ class OllamaToolsAgent:
 
     logger.debug(f'Querying with messages {messages}')
 
-    try:
-      response = await self.client.chat(
-        self.model,
-        messages=messages_dump,
-        tools=tools or self.tools,
-        stream=False,
+    cache_key = (
+      self.cache.make_key(
+        'llm',
+        {
+          'agent': type(self).__name__,
+          'model': self.model,
+          'messages': messages_dump,
+          'tools': self._tool_payload(active_tools),
+        },
       )
-    except ResponseError as error:
-      logger.error('Ollama Error: %s', error.error)
-      return None
+      if self.cache is not None
+      else None
+    )
 
-    return response.message.tool_calls or None
+    async def run_request() -> Sequence[Message.ToolCall] | None:
+      try:
+        response = await self.client.chat(
+          self.model,
+          messages=messages_dump,
+          tools=active_tools,
+          stream=False,
+        )
+      except ResponseError as error:
+        logger.error('Ollama Error: %s', error.error)
+        return None
+
+      return response.message.tool_calls or None
+
+    return (
+      await self.cache.get_or_set(cache_key, self.cache_ttl_seconds, run_request)
+      if self.cache is not None and cache_key is not None
+      else await run_request()
+    )
 
 
 class PydanticGenerateResponse:
@@ -439,7 +505,21 @@ class PydanticToolCalls(BaseModel):
 class PydanticGenerateAgent:
   """Generation wrapper backed by Pydantic AI."""
 
-  def __init__(self, *, model: Any, model_settings: ModelSettings, system: str | None = None) -> None:
+  def __init__(
+    self,
+    *,
+    model: Any,
+    model_settings: ModelSettings,
+    system: str | None = None,
+    model_identifier: str | None = None,
+    cache: SmartCache | None = None,
+    cache_ttl_seconds: float = 0.0,
+  ) -> None:
+    self.model_identifier = model_identifier or str(model)
+    self.model_settings = model_settings
+    self.system = system
+    self.cache = cache
+    self.cache_ttl_seconds = cache_ttl_seconds
     self.agent = PydanticAgent(
       model,
       instructions=system or (),
@@ -454,19 +534,54 @@ class PydanticGenerateAgent:
     del options
     logger.debug(f'Generating with prompt:\n{prompt}')
 
-    result: Any = await self.agent.run(prompt)
+    cache_key = (
+      self.cache.make_key(
+        'llm',
+        {
+          'agent': type(self).__name__,
+          'model': self.model_identifier,
+          'model_settings': dict(self.model_settings),
+          'system': self.system,
+          'prompt': prompt,
+        },
+      )
+      if self.cache is not None
+      else None
+    )
 
-    return PydanticGenerateResponse(str(result.output or ''))
+    async def run_request() -> PydanticGenerateResponse:
+      result: Any = await self.agent.run(prompt)
+
+      return PydanticGenerateResponse(str(result.output or ''))
+
+    return (
+      await self.cache.get_or_set(cache_key, self.cache_ttl_seconds, run_request)
+      if self.cache is not None and cache_key is not None
+      else await run_request()
+    )
 
 
 class PydanticToolsAgent:
   """Tool-selection wrapper backed by Pydantic AI structured output."""
 
-  def __init__(self, *, model: Any, model_settings: ModelSettings, tools: list[Tool], system: str | None = None) -> None:
+  def __init__(
+    self,
+    *,
+    model: Any,
+    model_settings: ModelSettings,
+    tools: list[Tool],
+    system: str | None = None,
+    model_identifier: str | None = None,
+    cache: SmartCache | None = None,
+    cache_ttl_seconds: float = 0.0,
+  ) -> None:
     self.model = model
+    self.model_identifier = model_identifier or str(model)
     self.model_settings = model_settings
     self.system = system
     self.tools = tools
+    self.cache = cache
+    self.cache_ttl_seconds = cache_ttl_seconds
 
   @staticmethod
   def _tool_name(tool: Tool) -> str | None:
@@ -491,31 +606,54 @@ class PydanticToolsAgent:
     active_tools = tools or self.tools
     tool_names = {name for tool in active_tools if (name := self._tool_name(tool))}
     instructions = '\n'.join(part for part in (self.system, self._tool_prompt(active_tools)) if part)
-    agent = PydanticAgent(
-      self.model,
-      output_type=PydanticToolCalls,
-      instructions=instructions,
-      model_settings=self.model_settings,
-    )
 
     logger.debug(f'Querying with message {message}')
-    result: Any = await agent.run(message)
-    calls: list[Message.ToolCall] = []
 
-    for call in result.output.calls:
-      if call.name not in tool_names:
-        continue
+    cache_key = (
+      self.cache.make_key(
+        'llm',
+        {
+          'agent': type(self).__name__,
+          'model': self.model_identifier,
+          'model_settings': dict(self.model_settings),
+          'instructions': instructions,
+          'message': message,
+        },
+      )
+      if self.cache is not None
+      else None
+    )
 
-      calls.append(
-        Message.ToolCall(
-          function=Message.ToolCall.Function(
-            name=call.name,
-            arguments=call.arguments,
+    async def run_request() -> Sequence[Message.ToolCall] | None:
+      agent = PydanticAgent(
+        self.model,
+        output_type=PydanticToolCalls,
+        instructions=instructions,
+        model_settings=self.model_settings,
+      )
+      result: Any = await agent.run(message)
+      calls: list[Message.ToolCall] = []
+
+      for call in result.output.calls:
+        if call.name not in tool_names:
+          continue
+
+        calls.append(
+          Message.ToolCall(
+            function=Message.ToolCall.Function(
+              name=call.name,
+              arguments=call.arguments,
+            )
           )
         )
-      )
 
-    return calls or None
+      return calls or None
+
+    return (
+      await self.cache.get_or_set(cache_key, self.cache_ttl_seconds, run_request)
+      if self.cache is not None and cache_key is not None
+      else await run_request()
+    )
 
 
 class UnavailableOllamaToolsAgent:
