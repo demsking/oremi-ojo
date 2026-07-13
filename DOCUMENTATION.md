@@ -15,7 +15,7 @@ recognize and remember.
 
 Project repository: https://gitlab.com/demsking/oremi-ojo
 
-![Oremi Ojọ Logo](./static/logo.jpg)
+![Oremi Ojọ Logo](./static/logo.png)
 
 ## Features
 

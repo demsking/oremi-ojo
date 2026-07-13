@@ -17,7 +17,7 @@ related environmental data. Like other services in the Oremi ecosystem—such as
 rooted in Yoruba, reinforcing a consistent identity while remaining easy to
 recognize and remember.
 
-![Oremi Ojọ Logo](https://gitlab.com/demsking/oremi-weather/-/raw/main/htdocs/logo.jpg)
+![Oremi Ojọ Logo](https://gitlab.com/demsking/oremi-ojo/-/raw/main/htdocs/logo.png)
 
 ## Documentation
 
