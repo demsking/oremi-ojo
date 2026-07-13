@@ -465,6 +465,7 @@ class OllamaToolsAgent:
           messages=messages_dump,
           tools=active_tools,
           stream=False,
+          think=False,
         )
       except ResponseError as error:
         logger.error('Ollama Error: %s', error.error)
