@@ -1,4 +1,5 @@
 from ojo.api.agent import _dedupe_locations
+from ojo.api.agent import _requested_data_fields
 from ojo.core.geo import Location
 
 
@@ -27,3 +28,16 @@ def test_dedupe_locations_collapses_near_duplicate_results():
   deduped = _dedupe_locations(locations)
 
   assert [location.name for location in deduped] == ['Paris', 'Lyon']
+
+
+def test_requested_data_fields_uses_tool_extracted_variables():
+  calls = [
+    ('weather', None, {'hourly_variables': ['wind_speed_10m'], 'daily_variables': ['sunset']}),
+    ('air-quality', None, {'variables': ['pm2_5']}),
+    ('pollen', None, {}),
+  ]
+
+  assert _requested_data_fields(calls) == {
+    'weather': {'wind_speed_10m', 'sunset'},
+    'air-quality': {'pm2_5'},
+  }

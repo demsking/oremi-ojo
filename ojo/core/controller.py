@@ -62,20 +62,17 @@ class Controller:
     'rain_sum',
     'weather_code',
   }
-  WEATHER_FIELD_KEYWORDS: ClassVar[dict[str, tuple[str, ...]]] = {
-    'temperature': ('temperature', 'température', 'temp', 'weather', 'météo', 'temps', 'chaud', 'chaleur', 'froid'),
-    'temperature_2m_max': ('maximum', 'max', 'chaud', 'chaleur', 'weather', 'météo', 'temps'),
-    'temperature_2m_min': ('minimum', 'min', 'froid', 'weather', 'météo', 'temps'),
-    'humidity': ('humidity', 'humidité', 'humide', 'moite', 'weather', 'météo', 'temps'),
-    'wind_speed': ('wind', 'vent', 'venteux', 'souffle'),
-    'wind_speed_10m_max': ('wind', 'vent', 'venteux', 'souffle'),
-    'wind_gusts_10m_max': ('gust', 'rafale', 'rafales'),
-    'wind_direction_10m_dominant': ('direction du vent', 'wind direction'),
-    'sunrise': ('sunrise', 'sun rise', 'lever du soleil', 'soleil se lève', 'lève le soleil'),
-    'sunset': ('sunset', 'sun set', 'coucher du soleil', 'soleil se couche', 'couche le soleil'),
-    'rain_sum': ('rain', 'pluie', 'pleuvoir', 'averse', 'parapluie'),
-    'uv_index_max': ('uv', 'indice uv', 'soleil'),
-    'weather_code': ('weather', 'météo', 'temps', 'condition', 'conditions'),
+  WEATHER_VARIABLE_OUTPUT_FIELDS: ClassVar[dict[str, str]] = {
+    'temperature': 'temperature',
+    'temperature_2m': 'temperature',
+    'relative_humidity_2m': 'humidity',
+    'relativehumidity_2m': 'humidity',
+    'humidity': 'humidity',
+    'wind_speed': 'wind_speed',
+    'wind_speed_10m': 'wind_speed',
+    'windspeed_10m': 'wind_speed',
+    'sunrise': 'sunrise',
+    'sunset': 'sunset',
   }
   POLLEN_GLOSSARY_FR: ClassVar[dict[str, str]] = {
     'alder': 'aulne',
@@ -198,26 +195,18 @@ class Controller:
     return Controller._compact_value(value)
 
   @staticmethod
-  def _requested_weather_fields(user_input: str) -> set[str]:
-    normalized = user_input.lower()
-    fields = {
-      field
-      for field, keywords in Controller.WEATHER_FIELD_KEYWORDS.items()
-      if any(keyword in normalized for keyword in keywords)
-    }
+  def _requested_weather_fields(requested_fields: set[str] | None) -> set[str]:
+    if not requested_fields:
+      return set(Controller.DEFAULT_WEATHER_FIELDS)
 
-    if any(keyword in normalized for keyword in ('weather', 'météo', 'temps')):
-      fields.update(Controller.DEFAULT_WEATHER_FIELDS)
-
-    return fields or set(Controller.DEFAULT_WEATHER_FIELDS)
+    return {Controller.WEATHER_VARIABLE_OUTPUT_FIELDS.get(field, field) for field in requested_fields}
 
   def _format_service_data_map(
     self,
     data: dict[str, ResponseData | NoneType],
     *,
-    user_input: str | None = None,
+    requested_data_fields: dict[str, set[str]] | None = None,
   ) -> dict[str, Any]:
-    weather_fields = Controller._requested_weather_fields(user_input or '')
     prompt_data: dict[str, Any] = {}
 
     for service, service_data in data.items():
@@ -227,6 +216,7 @@ class Controller:
         service_payload = service_data
 
       if service == 'weather' and isinstance(service_payload, dict):
+        weather_fields = Controller._requested_weather_fields((requested_data_fields or {}).get(service))
         service_payload = {
           key: value for key, value in service_payload.items() if key in weather_fields and value not in (None, '', [], {})
         }
@@ -239,9 +229,9 @@ class Controller:
     self,
     data: ResponsePayloadModel | ResponseData | NoneType,
     *,
-    user_input: str | None = None,
+    requested_data_fields: dict[str, set[str]] | None = None,
   ) -> str:
-    prompt_payload = self._relevant_prompt_payload(data, user_input=user_input)
+    prompt_payload = self._relevant_prompt_payload(data, requested_data_fields=requested_data_fields)
 
     return json.dumps(prompt_payload, ensure_ascii=False)
 
@@ -249,7 +239,7 @@ class Controller:
     self,
     data: ResponsePayloadModel | ResponseData | NoneType,
     *,
-    user_input: str | None = None,
+    requested_data_fields: dict[str, set[str]] | None = None,
   ) -> Any:
     if data is None:
       return {'error': 'Unable to fetch data for the specified location'}
@@ -264,7 +254,7 @@ class Controller:
         service_data_map: dict[str, ResponseData | NoneType] = {
           str(service): service_data for service, service_data in data.items() if not isinstance(service_data, dict)
         }
-        return self._format_service_data_map(service_data_map, user_input=user_input)
+        return self._format_service_data_map(service_data_map, requested_data_fields=requested_data_fields)
 
       payload_by_location: dict[str, Any] = {}
 
@@ -273,7 +263,10 @@ class Controller:
           location_service_map: dict[str, ResponseData | NoneType] = {
             str(service): service_data for service, service_data in location_data.items() if not isinstance(service_data, dict)
           }
-          relevant_data = self._format_service_data_map(location_service_map, user_input=user_input)
+          relevant_data = self._format_service_data_map(
+            location_service_map,
+            requested_data_fields=requested_data_fields,
+          )
 
           if relevant_data:
             payload_by_location[location_name] = relevant_data
@@ -372,8 +365,9 @@ class Controller:
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
     language: str | None = None,
+    requested_data_fields: dict[str, set[str]] | None = None,
   ) -> 'Controller.Response[ResponsePayloadModel]':
-    prompt_data = self._format_prompt_data(data, user_input=user_input)
+    prompt_data = self._format_prompt_data(data, requested_data_fields=requested_data_fields)
     response_language = language or await self.detect_language(user_input)
 
     prompt_lines = [
@@ -412,8 +406,9 @@ class Controller:
     temperature_unit: str,
     dateinfo: 'Controller.DateInfo | None',
     language: str | None = None,
+    requested_data_fields: dict[str, set[str]] | None = None,
   ) -> 'Controller.AlertResponse[ResponseData | NoneType]':
-    prompt_data = self._format_prompt_data(data)
+    prompt_data = self._format_prompt_data(data, requested_data_fields=requested_data_fields)
 
     prompt_lines = [
       Controller._response_language_prompt(language),

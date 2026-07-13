@@ -132,7 +132,6 @@ def test_weather_prompt_keeps_only_relevant_available_fields():
         sunset='21:51:24',
       )
     },
-    user_input='Quel temps fait-il à Paris ?',
   )
 
   assert '34.8°C' in prompt_data
@@ -156,7 +155,7 @@ def test_weather_prompt_keeps_solar_field_only_when_requested():
         sunset='21:51:24',
       )
     },
-    user_input='À quelle heure le soleil se couche à Paris ?',
+    requested_data_fields={'weather': {'sunset'}},
   )
 
   assert 'sunset' in prompt_data

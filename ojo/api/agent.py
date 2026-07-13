@@ -264,6 +264,25 @@ def _primary_service(services: list[GetServiceTool.Service]) -> GetServiceTool.S
   return services[0]
 
 
+def _requested_data_fields(
+  calls: list[tuple[GetServiceTool.Service | None, Location | None, dict[str, Any] | None]],
+) -> dict[str, set[str]]:
+  fields_by_service: dict[str, set[str]] = {}
+
+  for service, _, call_args in calls:
+    if not service or not call_args:
+      continue
+
+    if service == 'weather':
+      fields = fields_by_service.setdefault(service, set())
+      fields.update(str(field) for field in call_args.get('hourly_variables') or [])
+      fields.update(str(field) for field in call_args.get('daily_variables') or [])
+    elif service == 'air-quality':
+      fields_by_service.setdefault(service, set()).update(str(field) for field in call_args.get('variables') or [])
+
+  return {service: fields for service, fields in fields_by_service.items() if fields}
+
+
 @router.post(
   path='/chat',
   summary='Process a natural-language request',
@@ -315,6 +334,7 @@ async def process_user_input(
 
   if calls:
     requested_services = _dedupe_services([service for service, _, _ in calls if service])
+    requested_data_fields = _requested_data_fields(calls)
     locations_from_calls = [call_location for _, call_location, _ in calls if call_location]
     context_locations = [context_location] if context_location else []
     locations = _dedupe_locations(locations_from_calls + locations_from_text + context_locations)
@@ -439,6 +459,7 @@ async def process_user_input(
             temperature_unit,
             dateinfo,
             language=language,
+            requested_data_fields=requested_data_fields,
           )
 
           return ProcessResponse(
@@ -459,6 +480,7 @@ async def process_user_input(
           temperature_unit,
           dateinfo,
           language=language,
+          requested_data_fields=requested_data_fields,
         )
 
         return ProcessResponse(
