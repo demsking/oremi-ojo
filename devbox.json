@@ -11,7 +11,8 @@
     "shellcheck": "latest",
     "ruff": "latest",
     "skjold": "latest",
-    "yamllint": "latest"
+    "yamllint": "latest",
+    "twine": "latest"
   },
   "env": {
     "UV_MANAGED_PYTHON": "1",

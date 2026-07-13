@@ -593,6 +593,70 @@
         }
       }
     },
+    "twine@latest": {
+      "last_modified": "2026-06-27T07:37:20Z",
+      "resolved": "github:NixOS/nixpkgs/3d46470bb3030020f7e1361f33514854f5bfa86d#twine",
+      "source": "devbox-search",
+      "version": "6.2.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ikiz5ff77dyp3745bvx1y6a8glg0ibig-python3.13-twine-6.2.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/gi4p3md21s1lszwq373b45d2m6g9chji-python3.13-twine-6.2.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/ikiz5ff77dyp3745bvx1y6a8glg0ibig-python3.13-twine-6.2.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/q6qfzrr3kpj8g71kw7w94q6xh776ahhz-python3.13-twine-6.2.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/ivl1c5nw53j54dzr6v2rpvp3yvljfahd-python3.13-twine-6.2.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/q6qfzrr3kpj8g71kw7w94q6xh776ahhz-python3.13-twine-6.2.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/i3alv438mdv8b9m6qn2zgv0jnfphpgrf-python3.13-twine-6.2.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/clcpar8c7yxybhf5y8hycvcfcr12bmmp-python3.13-twine-6.2.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/i3alv438mdv8b9m6qn2zgv0jnfphpgrf-python3.13-twine-6.2.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/sqbb6h3yli9p4sfgjsk5cvxan3wk3df2-python3.13-twine-6.2.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/7bjaq4d0dkyzqqgallxxsidjk6dh5wfv-python3.13-twine-6.2.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/sqbb6h3yli9p4sfgjsk5cvxan3wk3df2-python3.13-twine-6.2.0"
+        }
+      }
+    },
     "uv@latest": {
       "last_modified": "2025-05-12T14:38:58Z",
       "resolved": "github:NixOS/nixpkgs/eaeed9530c76ce5f1d2d8232e08bec5e26f18ec1#uv",
