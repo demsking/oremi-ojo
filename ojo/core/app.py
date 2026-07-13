@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 def configure_app_state(app: FastAPI, settings: Settings, client: httpx.AsyncClient) -> None:
-  smart_cache = SmartCache(enabled=settings.cache_enabled, max_entries=settings.cache_max_entries)
+  smart_cache = SmartCache(enabled=settings.llm_cache_enabled, max_entries=settings.llm_cache_max_entries)
   assistant = AgentClient(settings, client, smart_cache)
   controller = Controller(assistant)
   openmeteo = OpenMeteoProvider(settings)
@@ -85,15 +85,14 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       'App settings [generation]: request_timeout=%s temperature=%s max_response_tokens=%s system_prompt=%s',
       settings.llm_request_timeout,
       settings.llm_temperature,
-      settings.max_response_tokens,
+      settings.llm_max_response_tokens,
       settings.llm_system_prompt.replace('\n', ' ').strip(),
     )
     logger.info('App settings [logging]: level=%s destination=%s', settings.log_level, settings.log_file or 'stderr')
     logger.info(
-      'App settings [cache]: enabled=%s max_entries=%s llm_ttl_seconds=%s http_ttl_seconds=%s',
-      settings.cache_enabled,
-      settings.cache_max_entries,
-      settings.cache_llm_ttl_seconds,
+      'App settings [cache]: enabled=%s llm_ttl_seconds=%s http_ttl_seconds=%s',
+      settings.llm_cache_enabled,
+      settings.llm_cache_ttl_seconds,
       settings.http_cache_ttl_seconds,
     )
 
@@ -143,7 +142,7 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       health.API_TAG_METADATA,
     ],
   )
-  configure_app_state(app, settings, http_client or httpx.AsyncClient(timeout=settings.request_timeout))
+  configure_app_state(app, settings, http_client or httpx.AsyncClient(timeout=settings.http_request_timeout))
 
   @app.exception_handler(Exception)
   async def unhandled_exception_handler(_, exc: Exception) -> JSONResponse:

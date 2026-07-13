@@ -66,19 +66,19 @@ or as a Python package.
 #### Install with uv
 
 ```sh
-uv tool install oremi-weather
+uv tool install oremi-ojo
 ```
 
 #### Install with pip
 
 ```sh
-python -m pip install oremi-weather
+python -m pip install oremi-ojo
 ```
 
 #### Usage
 
 ```text
-oremi-weather [-h] [-v]
+oremi-ojo [-h] [-v]
 ```
 
 When started without arguments, Oremi Ojọ launches the HTTP server using the
@@ -95,7 +95,7 @@ command-line options.
 
 ### Docker Image
 
-The [`demsking/oremi-weather`](https://hub.docker.com/r/demsking/oremi-weather)
+The [`demsking/oremi-ojo`](https://hub.docker.com/r/demsking/oremi-ojo)
 Docker image is officially available on Docker Hub, supporting both
 `linux/amd64` and `linux/arm64` platforms. The image exposes port `1777`, which
 serves the REST API and the interactive documentation.
@@ -115,15 +115,15 @@ mount a host directory to preserve log files across container recreation.
 ### Deploy with Docker
 
 Use the official Docker image
-[`demsking/oremi-weather`](https://hub.docker.com/r/demsking/oremi-weather)
+[`demsking/oremi-ojo`](https://hub.docker.com/r/demsking/oremi-ojo)
 to run Oremi Ojọ:
 
 ```sh
 docker run -d \
-  --name oremi-weather \
+  --name oremi-ojo \
   --env-file <path_to_env_file> \
   -p 1777:1777 \
-  demsking/oremi-weather
+  demsking/oremi-ojo
 ```
 
 Replace `<path_to_env_file>` with the path to your
@@ -137,7 +137,7 @@ Create a `compose.yaml` file:
 ```yaml
 services:
   agent:
-    image: demsking/oremi-weather
+    image: demsking/oremi-ojo
     depends_on:
       - ollama
     environment:
@@ -176,26 +176,78 @@ of these variables, grouped by their purpose.
 - **OREMI_OJO_SERVER_HOST**: The host address on which the application will listen. Default is `"127.0.0.1"`.
 - **OREMI_OJO_SERVER_PORT**: The port number on which the application will listen. Default is `1777`.
 - **OREMI_OJO_API_PREFIX**: Base path for the API and docs routes. Default is `"/"`.
-- **OREMI_OJO_REQUEST_TIMEOUT**: Global HTTP timeout in seconds for external requests. Default is `30.0`.
-- **OREMI_OJO_USER_AGENT**: User-Agent header sent to external HTTP services such as Nominatim. Default is `"oremi-ojo/<version> (https://gitlab.com/demsking/oremi-ojo)"`.
 
-### Caching Configuration
+### HTTP Configuration
 
-These variables control internal LLM caching and response generation.
+These variables control outbound HTTP calls made by Oremi Ojọ to external data
+providers such as Nominatim and Open-Meteo. They do not control the server bind
+address or the timeout for LLM generation.
 
-- **OREMI_OJO_CACHE_ENABLED**: Enables the bounded internal cache. Default is `true`.
-- **OREMI_OJO_CACHE_MAX_ENTRIES**: Maximum number of cached entries kept in memory. Default is `512`.
-- **OREMI_OJO_CACHE_LLM_TTL_SECONDS**: TTL in seconds for cacheable LLM calls. Default is `300.0`.
+- **OREMI_OJO_HTTP_REQUEST_TIMEOUT**: Global HTTP timeout in seconds for external requests. Default is `30.0`.
+- **OREMI_OJO_HTTP_USER_AGENT**: User-Agent header sent to external HTTP services such as Nominatim. Default is `"oremi-ojo/<version> (https://gitlab.com/demsking/oremi-ojo)"`.
 - **OREMI_OJO_HTTP_CACHE_TTL_SECONDS**: TTL in seconds for external HTTP cache sessions. Default is `3600.0`, matching the fastest hourly weather data refresh cadence used by the shared weather, air-quality, and pollen providers.
+
+Example:
+
+```env
+OREMI_OJO_HTTP_REQUEST_TIMEOUT=20.0
+OREMI_OJO_HTTP_USER_AGENT=oremi-ojo/3.0.0 (ops@example.com)
+OREMI_OJO_HTTP_CACHE_TTL_SECONDS=1800.0
+```
+
+### LLM Configuration
+
+- **OREMI_OJO_LLM_MODEL**: Model name to use for the agent. If it starts with `ollama:`, the prefix is stripped before creating the Ollama-backed model. Default is `"ollama:qwen3.5:2b"`.
+- **OREMI_OJO_LLM_REQUEST_TIMEOUT**: Timeout in seconds for LLM requests. Default is `15`.
+- **OREMI_OJO_LLM_TEMPERATURE**: Sampling temperature used by the agent. Default is `0.3`.
+- **OREMI_OJO_LLM_MAX_RESPONSE_TOKENS**: Maximum number of generated tokens. Default is `500`.
+- **OREMI_OJO_LLM_SYSTEM_PROMPT**: System prompt for the agent. Default is the bundled prompt.
+
+Example:
+
+```env
+OREMI_OJO_LLM_MODEL=ollama:qwen3.5:2b
+OREMI_OJO_LLM_REQUEST_TIMEOUT=15
+OREMI_OJO_LLM_TEMPERATURE=0.3
+OREMI_OJO_LLM_MAX_RESPONSE_TOKENS=500
+```
+
+### LLM Cache Configuration
+
+These variables control the bounded in-memory cache used for repeated LLM work
+and idempotent agent component calls. The cache is process-local and is not
+persisted across restarts.
+
+- **OREMI_OJO_LLM_CACHE_ENABLED**: Enables the bounded internal LLM cache. Default is `true`.
+- **OREMI_OJO_LLM_CACHE_MAX_ENTRIES**: Maximum number of internal LLM cache entries kept in memory. Set to `0` to disable caching. Default is `512`.
+- **OREMI_OJO_LLM_CACHE_TTL_SECONDS**: TTL in seconds for cacheable internal LLM calls. Default is `300.0`.
+
+Examples:
+
+```env
+# Keep LLM cache enabled, but shorten reuse to one minute.
+OREMI_OJO_LLM_CACHE_ENABLED=true
+OREMI_OJO_LLM_CACHE_MAX_ENTRIES=512
+OREMI_OJO_LLM_CACHE_TTL_SECONDS=60.0
+```
+
+```env
+# Disable LLM cache completely.
+OREMI_OJO_LLM_CACHE_ENABLED=false
+OREMI_OJO_LLM_CACHE_MAX_ENTRIES=0
+OREMI_OJO_LLM_CACHE_TTL_SECONDS=0.0
+```
 
 ### Ollama Configuration
 
 - **OREMI_OJO_OLLAMA_BASE_URL**: Base URL of the Ollama API. Required when using an `ollama:` model.
-- **OREMI_OJO_LLM_MODEL**: Model name to use for the agent. If it starts with `ollama:`, the prefix is stripped before creating the Ollama-backed model. Default is `"ollama:qwen3.5:2b"`.
-- **OREMI_OJO_LLM_REQUEST_TIMEOUT**: Timeout in seconds for LLM requests. Default is `15`.
-- **OREMI_OJO_LLM_TEMPERATURE**: Sampling temperature used by the agent. Default is `0.3`.
-- **OREMI_OJO_MAX_RESPONSE_TOKENS**: Maximum number of generated tokens. Default is `500`.
-- **OREMI_OJO_LLM_SYSTEM_PROMPT**: System prompt for the agent. Default is the bundled prompt.
+
+Example:
+
+```env
+OREMI_OJO_LLM_MODEL=ollama:qwen3.5:2b
+OREMI_OJO_OLLAMA_BASE_URL=http://localhost:11434
+```
 
 ### API and Logging Configuration
 
@@ -230,7 +282,7 @@ assistant planning.
 
 ## Development
 
-See the [contribution guide](https://gitlab.com/demsking/oremi-weather/-/blob/main/CONTRIBUTING.md)
+See the [contribution guide](https://gitlab.com/demsking/oremi-ojo/-/blob/main/CONTRIBUTING.md)
 for development environment and contribution guidance.
 
 ## Versioning
@@ -247,5 +299,5 @@ oremi-ojo --version
 Copyright 2026 Sébastien Demanou. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0. See the
-[LICENSE](https://gitlab.com/demsking/oremi-weather/-/blob/main/LICENSE) for the
+[LICENSE](https://gitlab.com/demsking/oremi-ojo/-/blob/main/LICENSE) for the
 complete license text.

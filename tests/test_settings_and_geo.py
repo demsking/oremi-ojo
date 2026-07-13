@@ -14,7 +14,7 @@ def test_user_agent_setting_can_be_configured_from_environment(monkeypatch):
 
   settings = Settings()
 
-  assert settings.user_agent == 'custom-weather-agent/1.0'
+  assert settings.http_user_agent == 'custom-weather-agent/1.0'
 
 
 def test_http_cache_ttl_can_be_configured_from_environment(monkeypatch):

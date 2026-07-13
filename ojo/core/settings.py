@@ -77,47 +77,47 @@ class Settings(BaseSettings):
     description='System prompt for the AI agent.',
   )
 
-  ollama_base_url: HttpUrl | None = Field(
-    default=None,
-    description='Ollama API base URL used when the agent runs on Ollama.',
-  )
-
-  request_timeout: float = Field(
-    default=30.0,
-    gt=1.0,
-    description='Global timeout in seconds for HTTP requests to external services. Default: 30.0.',
-  )
-
-  user_agent: str = Field(
-    default=f'{APP_NAME}/{APP_VERSION} (https://gitlab.com/demsking/oremi-ojo)',
-    min_length=1,
-    description='User-Agent header value for outbound HTTP requests to external services.',
-  )
-
-  max_response_tokens: int = Field(
+  llm_max_response_tokens: int = Field(
     default=500,
     gt=10,
     le=4096,
     description='Maximum number of tokens to generate in LLM responses. Default: 500.',
   )
 
-  cache_enabled: bool = Field(
+  llm_cache_enabled: bool = Field(
     default=True,
     description='Enable the bounded internal cache for repeated LLM and idempotent component calls.',
   )
 
-  cache_max_entries: int = Field(
+  llm_cache_max_entries: int = Field(
     default=512,
     ge=0,
     le=10000,
-    description='Maximum number of internal smart-cache entries kept in memory. Set to 0 to disable caching.',
+    description='Maximum number of internal LLM cache entries kept in memory. Set to 0 to disable caching.',
   )
 
-  cache_llm_ttl_seconds: float = Field(
+  llm_cache_ttl_seconds: float = Field(
     default=300.0,
     ge=0.0,
     le=3600.0,
     description='TTL in seconds for cacheable internal LLM calls.',
+  )
+
+  ollama_base_url: HttpUrl | None = Field(
+    default=None,
+    description='Ollama API base URL used when the agent runs on Ollama.',
+  )
+
+  http_request_timeout: float = Field(
+    default=30.0,
+    gt=1.0,
+    description='Global timeout in seconds for HTTP requests to external services. Default: 30.0.',
+  )
+
+  http_user_agent: str = Field(
+    default=f'{APP_NAME}/{APP_VERSION} (https://gitlab.com/demsking/oremi-ojo)',
+    min_length=1,
+    description='User-Agent header value for outbound HTTP requests to external services.',
   )
 
   http_cache_ttl_seconds: float = Field(

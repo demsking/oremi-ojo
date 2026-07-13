@@ -73,7 +73,7 @@ class AgentClient(Generic[OutputModel]):
 
     self.model_settings = ModelSettings(
       temperature=settings.llm_temperature,
-      max_tokens=settings.max_response_tokens,
+      max_tokens=settings.llm_max_response_tokens,
       timeout=settings.llm_request_timeout,
       thinking=False,
     )
@@ -93,7 +93,7 @@ class AgentClient(Generic[OutputModel]):
         model=self.settings.ollama_model_name,
         system=system,
         cache=self.cache,
-        cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
+        cache_ttl_seconds=self.settings.llm_cache_ttl_seconds,
       )
 
     if self.model is None:
@@ -105,7 +105,7 @@ class AgentClient(Generic[OutputModel]):
       model_settings=self.model_settings,
       system=system,
       cache=self.cache,
-      cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
+      cache_ttl_seconds=self.settings.llm_cache_ttl_seconds,
     )
 
   def create_tools_agent(
@@ -121,7 +121,7 @@ class AgentClient(Generic[OutputModel]):
         tools=tools,
         system=system,
         cache=self.cache,
-        cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
+        cache_ttl_seconds=self.settings.llm_cache_ttl_seconds,
       )
 
     if self.model is None:
@@ -134,7 +134,7 @@ class AgentClient(Generic[OutputModel]):
       tools=tools,
       system=system,
       cache=self.cache,
-      cache_ttl_seconds=self.settings.cache_llm_ttl_seconds,
+      cache_ttl_seconds=self.settings.llm_cache_ttl_seconds,
     )
 
   async def load_model(self) -> None:
@@ -277,7 +277,7 @@ class AgentClient(Generic[OutputModel]):
       return response.message.content or ''
 
     content = (
-      await self.cache.get_or_set(cache_key, self.settings.cache_llm_ttl_seconds, run_request)
+      await self.cache.get_or_set(cache_key, self.settings.llm_cache_ttl_seconds, run_request)
       if self.cache is not None and cache_key is not None
       else await run_request()
     )
@@ -307,7 +307,7 @@ class AgentClient(Generic[OutputModel]):
       return result.output
 
     output = (
-      await self.cache.get_or_set(cache_key, self.settings.cache_llm_ttl_seconds, run_request)
+      await self.cache.get_or_set(cache_key, self.settings.llm_cache_ttl_seconds, run_request)
       if self.cache is not None and cache_key is not None
       else await run_request()
     )

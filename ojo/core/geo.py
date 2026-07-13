@@ -63,8 +63,8 @@ def _get_nominatim_http_client() -> httpx.AsyncClient:
 
   return httpx.AsyncClient(
     base_url='https://nominatim.openstreetmap.org',
-    headers={'User-Agent': settings.user_agent},
-    timeout=settings.request_timeout,
+    headers={'User-Agent': settings.http_user_agent},
+    timeout=settings.http_request_timeout,
   )
 
 
