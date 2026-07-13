@@ -89,7 +89,11 @@ class FakeOpenMeteoResponse:
 
 
 class FakeOpenMeteoClient:
+  def __init__(self):
+    self.params = None
+
   def weather_api(self, url, params):
+    self.params = params
     return [FakeOpenMeteoResponse([0, 3600, 23], utc_offset_seconds=3600)]
 
 
@@ -133,7 +137,8 @@ class FakeOpenMeteoCurrentClient:
 
 @pytest.mark.asyncio
 async def test_fetch_daily_formats_sun_times_as_local_clock_values():
-  provider = ForecastService(DummyProvider(FakeOpenMeteoClient()))  # type: ignore[arg-type]
+  client = FakeOpenMeteoClient()
+  provider = ForecastService(DummyProvider(client))  # type: ignore[arg-type]
   now = datetime.datetime(2026, 7, 10)
   dateinfo = Controller.DateInfo(period='daily', start=now, end=now, timezone='Europe/Paris')
 
@@ -148,6 +153,8 @@ async def test_fetch_daily_formats_sun_times_as_local_clock_values():
   assert res.sunrise == '01:00:00'
   assert res.sunset == '02:00:00'
   assert res.weather_code == 23
+  assert client.params['start_date'] == '2026-07-10'
+  assert client.params['end_date'] == '2026-07-10'
 
 
 @pytest.mark.asyncio

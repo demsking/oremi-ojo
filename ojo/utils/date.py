@@ -21,3 +21,11 @@ def get_current_datetime(timezone: str) -> datetime:
   tz = pytz.timezone(timezone)
 
   return datetime.now(tz)
+
+
+def format_datetime(value: datetime) -> str:
+  return value.strftime('%A, %-d %B %Y at %H:%M')
+
+
+def format_date(value: datetime) -> str:
+  return value.strftime('%A, %-d %B %Y')

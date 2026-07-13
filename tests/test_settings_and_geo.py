@@ -10,7 +10,7 @@ from ojo.services.pollen_service import PollenService
 
 
 def test_user_agent_setting_can_be_configured_from_environment(monkeypatch):
-  monkeypatch.setenv('OREMI_OJO_USER_AGENT', 'custom-weather-agent/1.0')
+  monkeypatch.setenv('OREMI_OJO_HTTP_USER_AGENT', 'custom-weather-agent/1.0')
 
   settings = Settings()
 
@@ -45,7 +45,7 @@ def test_openmeteo_services_share_one_client_and_cache_session():
 
 
 def test_nominatim_http_client_uses_configured_user_agent(monkeypatch):
-  monkeypatch.setenv('OREMI_OJO_USER_AGENT', 'custom-weather-agent/2.0')
+  monkeypatch.setenv('OREMI_OJO_HTTP_USER_AGENT', 'custom-weather-agent/2.0')
   get_settings.cache_clear()
   _get_nominatim_http_client.cache_clear()
 

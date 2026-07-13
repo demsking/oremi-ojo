@@ -25,7 +25,7 @@ import dateutil.parser
 from ollama import Tool
 
 from ..llm.agent import AgentClient
-from ..utils.time import get_current_datetime
+from ..utils.date import get_current_datetime
 
 logger = logging.getLogger(__name__)
 

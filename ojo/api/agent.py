@@ -230,16 +230,16 @@ def _is_alert_route(context: dict[str, Any]) -> bool:
 
 
 def _dedupe_locations(locations: list[Any]) -> list[Any]:
-  seen: set[tuple[float, float]] = set()
   deduped: list[Any] = []
 
   for location in locations:
-    key = (location.lat, location.lon)
+    is_duplicate = any(
+      abs(existing.lat - location.lat) < 0.1 and abs(existing.lon - location.lon) < 0.1 for existing in deduped
+    )
 
-    if key in seen:
+    if is_duplicate:
       continue
 
-    seen.add(key)
     deduped.append(location)
 
   return deduped

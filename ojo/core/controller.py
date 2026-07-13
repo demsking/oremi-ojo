@@ -14,6 +14,7 @@
 # ==============================================================================
 import json
 import logging
+import re
 from datetime import datetime
 from types import NoneType
 from typing import Any
@@ -35,6 +36,8 @@ from ..tools.date_tool import GetDateTool
 from ..tools.date_tool import Period
 from ..tools.location_tool import GetLocationTool
 from ..tools.service_tool import GetServiceTool
+from ..utils.date import format_date
+from ..utils.date import format_datetime
 
 ResponseData = ForecastData | DailyForecastData | USAQIData | EAQIData | PollenData
 ResponseDataModel = dict[GetServiceTool.Service, ResponseData | NoneType]
@@ -49,6 +52,31 @@ logger = logging.getLogger(__name__)
 class Controller:
   SERVICE_NAMES: ClassVar[set[str]] = {'weather', 'air-quality', 'pollen'}
   DEFAULT_RESPONSE_TEXT: ClassVar[str] = 'No response'
+  DEFAULT_WEATHER_FIELDS: ClassVar[set[str]] = {
+    'temperature',
+    'temperature_2m_max',
+    'temperature_2m_min',
+    'humidity',
+    'wind_speed',
+    'wind_speed_10m_max',
+    'rain_sum',
+    'weather_code',
+  }
+  WEATHER_FIELD_KEYWORDS: ClassVar[dict[str, tuple[str, ...]]] = {
+    'temperature': ('temperature', 'température', 'temp', 'weather', 'météo', 'temps', 'chaud', 'chaleur', 'froid'),
+    'temperature_2m_max': ('maximum', 'max', 'chaud', 'chaleur', 'weather', 'météo', 'temps'),
+    'temperature_2m_min': ('minimum', 'min', 'froid', 'weather', 'météo', 'temps'),
+    'humidity': ('humidity', 'humidité', 'humide', 'moite', 'weather', 'météo', 'temps'),
+    'wind_speed': ('wind', 'vent', 'venteux', 'souffle'),
+    'wind_speed_10m_max': ('wind', 'vent', 'venteux', 'souffle'),
+    'wind_gusts_10m_max': ('gust', 'rafale', 'rafales'),
+    'wind_direction_10m_dominant': ('direction du vent', 'wind direction'),
+    'sunrise': ('sunrise', 'sun rise', 'lever du soleil', 'soleil se lève', 'lève le soleil'),
+    'sunset': ('sunset', 'sun set', 'coucher du soleil', 'soleil se couche', 'couche le soleil'),
+    'rain_sum': ('rain', 'pluie', 'pleuvoir', 'averse', 'parapluie'),
+    'uv_index_max': ('uv', 'indice uv', 'soleil'),
+    'weather_code': ('weather', 'météo', 'temps', 'condition', 'conditions'),
+  }
   POLLEN_GLOSSARY_FR: ClassVar[dict[str, str]] = {
     'alder': 'aulne',
     'birch': 'bouleau',
@@ -63,17 +91,20 @@ class Controller:
     self.assistant = assistant
     self.response_agent = assistant.create_agent(
       system=(
-        "You are a smart weather assistant. Respond to the user's weather request in a natural, clear, and human-like way, "
-        'Use the forecast data provided in the context to generate your response.\n'
+        'You answer weather, air-quality, and pollen questions using only the supplied data.\n'
+        'If a value or service is absent, do not mention it and do not infer it.\n'
+        'Never invent sky conditions, air cleanliness, wind direction, rain, alerts, or clothing advice unless the data supports it.\n'
+        'If the request asks for a precise value, answer with that value first.\n'
+        'For broad weather requests, summarize only the available relevant measurements.\n'
         'Do not use text in parentheses. Provide direct answers only.\n'
         "Do not start with greetings like 'Hello' or the user's name. Go straight to the point.\n"
         'Your response must:\n'
         "- Be conversational and clear in the user's requested language\n"
-        '- Avoid listing raw data\n'
-        "- Subtly mention the source of the data by extracting the provider's name from the context\n"
-        '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
+        '- Be concise: one or two short sentences maximum\n'
+        '- Avoid listing raw JSON or repeating irrelevant fields\n'
+        '- Mention the provider only if it helps clarify the source\n'
+        '- Offer a recommendation only when a concrete risk is present in the data\n'
         '- Feel like a helpful assistant speaking to a human\n'
-        '- Always use short, simple sentences\n'
         'Your responses will be used by a text-to-speech (TTS) service. Make sure they are easy to pronounce and suitable for basic TTS engines.\n'
       )
     )
@@ -88,8 +119,9 @@ class Controller:
 
     self.alerts_response_agent = assistant.create_agent(
       system=(
-        'You are an emergency alert specialist. Deliver urgent notifications about weather, pollen, and air quality risks. '
-        'Prioritize immediate dangers and actionable advice using active alerts.\n\n'
+        'You are an emergency alert specialist. Use only the supplied data. '
+        'Prioritize immediate dangers and actionable advice.\n'
+        'If no alert-level value is present, say there is no notable alert in one short sentence.\n\n'
         'Critical response rules:\n'
         # '1. URGENCY FIRST:\n'
         # '   - Start with the most severe threat\n'
@@ -110,11 +142,9 @@ class Controller:
         '   Always end with one concrete recommendation\n\n'
         'Your response must:\n'
         "- Be conversational and clear in the user's requested language\n"
-        '- Avoid listing raw data\n'
-        "- Subtly mention the source of the data by extracting the provider's name from the context\n"
-        '- Offer a recommendation when relevant (e.g., dress warmly, take an umbrella, avoid strong winds)\n'
-        '- Feel like a helpful assistant speaking to a human\n'
-        '- Always use short, simple sentences\n'
+        '- Be concise: one or two short sentences maximum\n'
+        '- Avoid listing raw JSON or irrelevant fields\n'
+        '- Offer a recommendation only when a concrete risk is present in the data\n'
         'Never mention:\n'
         "- Do not start with greetings like 'Hello' or the user's name. Go straight to the point.\n"
         '- Low-risk conditions (level 1/0)\n'
@@ -138,18 +168,94 @@ class Controller:
       assistant=assistant,
     )
 
-  def _format_service_data_map(self, data: dict[str, ResponseData | NoneType]) -> dict[str, Any]:
-    return {
-      service: (service_data.model_dump() if isinstance(service_data, BaseModel) else service_data)
-      for service, service_data in data.items()
+  @staticmethod
+  def _compact_value(value: Any) -> Any:
+    if isinstance(value, str) and ':' in value:
+      return value
+
+    if isinstance(value, float):
+      return round(value, 1)
+
+    if isinstance(value, str):
+      match = re.fullmatch(r'(-?\d+(?:\.\d+)?)(.*)', value.strip())
+
+      if match and match.group(2).strip():
+        suffix = match.group(2).strip()
+        separator = '' if suffix.startswith(('°', '%')) else ' '
+
+        return f'{round(float(match.group(1)), 1)}{separator}{suffix}'
+
+    return value
+
+  @staticmethod
+  def _compact_data(value: Any) -> Any:
+    if isinstance(value, dict):
+      return {key: Controller._compact_data(item) for key, item in value.items()}
+
+    if isinstance(value, list):
+      return [Controller._compact_data(item) for item in value]
+
+    return Controller._compact_value(value)
+
+  @staticmethod
+  def _requested_weather_fields(user_input: str) -> set[str]:
+    normalized = user_input.lower()
+    fields = {
+      field
+      for field, keywords in Controller.WEATHER_FIELD_KEYWORDS.items()
+      if any(keyword in normalized for keyword in keywords)
     }
 
-  def _format_prompt_data(self, data: ResponsePayloadModel | ResponseData | NoneType) -> str:
+    if any(keyword in normalized for keyword in ('weather', 'météo', 'temps')):
+      fields.update(Controller.DEFAULT_WEATHER_FIELDS)
+
+    return fields or set(Controller.DEFAULT_WEATHER_FIELDS)
+
+  def _format_service_data_map(
+    self,
+    data: dict[str, ResponseData | NoneType],
+    *,
+    user_input: str | None = None,
+  ) -> dict[str, Any]:
+    weather_fields = Controller._requested_weather_fields(user_input or '')
+    prompt_data: dict[str, Any] = {}
+
+    for service, service_data in data.items():
+      if isinstance(service_data, BaseModel):
+        service_payload = service_data.model_dump(exclude_none=True)
+      else:
+        service_payload = service_data
+
+      if service == 'weather' and isinstance(service_payload, dict):
+        service_payload = {
+          key: value for key, value in service_payload.items() if key in weather_fields and value not in (None, '', [], {})
+        }
+
+      prompt_data[service] = Controller._compact_data(service_payload)
+
+    return prompt_data
+
+  def _format_prompt_data(
+    self,
+    data: ResponsePayloadModel | ResponseData | NoneType,
+    *,
+    user_input: str | None = None,
+  ) -> str:
+    prompt_payload = self._relevant_prompt_payload(data, user_input=user_input)
+
+    return json.dumps(prompt_payload, ensure_ascii=False)
+
+  def _relevant_prompt_payload(
+    self,
+    data: ResponsePayloadModel | ResponseData | NoneType,
+    *,
+    user_input: str | None = None,
+  ) -> Any:
     if data is None:
-      return 'Response: Unable to fetch data for the specified location'
+      return {'error': 'Unable to fetch data for the specified location'}
 
     if isinstance(data, BaseModel):
-      return data.model_dump_json()
+      return Controller._compact_data(data.model_dump(exclude_none=True))
 
     if isinstance(data, dict):
       keys = list(data.keys())
@@ -158,7 +264,7 @@ class Controller:
         service_data_map: dict[str, ResponseData | NoneType] = {
           str(service): service_data for service, service_data in data.items() if not isinstance(service_data, dict)
         }
-        return json.dumps(self._format_service_data_map(service_data_map), ensure_ascii=False)
+        return self._format_service_data_map(service_data_map, user_input=user_input)
 
       payload_by_location: dict[str, Any] = {}
 
@@ -167,11 +273,14 @@ class Controller:
           location_service_map: dict[str, ResponseData | NoneType] = {
             str(service): service_data for service, service_data in location_data.items() if not isinstance(service_data, dict)
           }
-          payload_by_location[location_name] = self._format_service_data_map(location_service_map)
-        else:
-          payload_by_location[location_name] = location_data
+          relevant_data = self._format_service_data_map(location_service_map, user_input=user_input)
 
-      return json.dumps(payload_by_location, ensure_ascii=False)
+          if relevant_data:
+            payload_by_location[location_name] = relevant_data
+        else:
+          payload_by_location[location_name] = Controller._compact_data(location_data)
+
+      return payload_by_location
 
     return str(data)
 
@@ -181,14 +290,14 @@ class Controller:
       return ''
 
     if dateinfo.start == dateinfo.end:
-      today = datetime.now(dateinfo.start.tzinfo).replace(second=0, microsecond=0)
+      now = datetime.now(dateinfo.start.tzinfo).replace(second=0, microsecond=0)
 
-      if dateinfo.start.date() == today.date():
-        return f'Current Date and Time: {today}.'
+      if dateinfo.start.date() == now.date():
+        return f'Current date and time: {format_datetime(now)}.'
 
       return f'Date: {dateinfo.start_date}.'
 
-    return f'Start Date: {dateinfo.start_date}.\nEnd Date: {dateinfo.end_date}.'
+    return f'Start date: {dateinfo.start_date}.\nEnd date: {dateinfo.end_date}.'
 
   @staticmethod
   def _extract_generated_text(result: Any) -> str:
@@ -264,20 +373,23 @@ class Controller:
     dateinfo: 'Controller.DateInfo | None',
     language: str | None = None,
   ) -> 'Controller.Response[ResponsePayloadModel]':
-    prompt_data = self._format_prompt_data(data)
+    prompt_data = self._format_prompt_data(data, user_input=user_input)
     response_language = language or await self.detect_language(user_input)
 
-    prompt = (
-      f'User Request: {user_input}.\n'
-      f'{Controller._response_language_prompt(response_language)}\n'
-      f'Provider: {provider}.\n'
-      f'Services: {", ".join(services)}.\n'
-      f'{prompt_data}.\n'
-      f'Temperature Unit: {temperature_unit}'
-    )
+    prompt_lines = [
+      f'User request: {user_input}',
+      Controller._response_language_prompt(response_language),
+      f'Data source: {provider}',
+      f'Temperature unit: {temperature_unit}',
+      f'Relevant data only: {prompt_data}',
+      'Answer only from the relevant data. Do not mention missing services or absent fields.',
+    ]
+    date_context = Controller._date_prompt_context(dateinfo)
 
-    prompt += Controller._date_prompt_context(dateinfo)
+    if date_context:
+      prompt_lines.append(date_context)
 
+    prompt = '\n'.join(prompt_lines)
     result = await self.response_agent.generate(prompt)
     message = Controller._extract_generated_text(result)
 
@@ -303,11 +415,19 @@ class Controller:
   ) -> 'Controller.AlertResponse[ResponseData | NoneType]':
     prompt_data = self._format_prompt_data(data)
 
-    prompt = (
-      f'{Controller._response_language_prompt(language)}\n'
-      f'Provider: {provider}.\nProvider Response: {prompt_data}.\nTemperature Unit: {temperature_unit}\n'
-    )
-    prompt += Controller._date_prompt_context(dateinfo)
+    prompt_lines = [
+      Controller._response_language_prompt(language),
+      f'Data source: {provider}',
+      f'Temperature unit: {temperature_unit}',
+      f'Relevant data only: {prompt_data}',
+      'Answer only from the relevant data. Do not mention missing services or absent fields.',
+    ]
+    date_context = Controller._date_prompt_context(dateinfo)
+
+    if date_context:
+      prompt_lines.append(date_context)
+
+    prompt = '\n'.join(prompt_lines)
 
     result = await self.alerts_response_agent.generate(prompt)
     message = Controller._extract_generated_text(result)
@@ -340,11 +460,19 @@ class Controller:
 
     @property
     def start_date(self) -> str:
-      return self.start.date().isoformat()
+      return format_date(self.start)
 
     @property
     def end_date(self) -> str:
-      return self.end.date().isoformat()
+      return format_date(self.end)
+
+    @property
+    def start_datetime(self) -> str:
+      return format_datetime(self.start)
+
+    @property
+    def end_datetime(self) -> str:
+      return format_datetime(self.end)
 
   class Response(BaseModel, Generic[ResponseDataType]):
     provider: str = Field(..., description='Name of the data provider')

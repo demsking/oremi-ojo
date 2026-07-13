@@ -166,6 +166,10 @@ class ForecastService:
     return UNIT_LABELS.get(unit, '')
 
   @staticmethod
+  def _openmeteo_date(value: datetime.datetime) -> str:
+    return value.date().isoformat()
+
+  @staticmethod
   def _value_at(values, index: int):
     if values is None or isinstance(values, int) or len(values) <= index:
       return None
@@ -257,8 +261,8 @@ class ForecastService:
       'longitude': lon,
       'daily': daily_vars,
       'timezone': dateinfo.timezone,
-      'start_date': dateinfo.start_date,
-      'end_date': dateinfo.end_date,
+      'start_date': self._openmeteo_date(dateinfo.start),
+      'end_date': self._openmeteo_date(dateinfo.end),
       'temperature_unit': temperature_unit,
     }
 

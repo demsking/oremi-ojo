@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from ojo.core.controller import Controller
 from ojo.core.geo import Location
+from ojo.models.forecast import ForecastData
 
 
 @dataclass
@@ -115,3 +116,50 @@ async def test_generate_response_uses_provided_language_without_detection():
   assert response.message == 'Il fera beau.'
   assert assistant.language_agent.prompts == []
   assert 'The user request is written in French. Reply in French.' in assistant.response_agent.prompts[0]
+
+
+def test_weather_prompt_keeps_only_relevant_available_fields():
+  assistant = FakeAssistant()
+  controller = Controller(assistant)  # type: ignore[arg-type]
+
+  prompt_data = controller._format_prompt_data(
+    {
+      'weather': ForecastData(
+        temperature='34.81949996948242°C',
+        humidity='20.0%',
+        wind_speed='14.399999618530273 km/h',
+        sunrise='06:01:25',
+        sunset='21:51:24',
+      )
+    },
+    user_input='Quel temps fait-il à Paris ?',
+  )
+
+  assert '34.8°C' in prompt_data
+  assert '14.4 km/h' in prompt_data
+  assert 'sunrise' not in prompt_data
+  assert 'sunset' not in prompt_data
+  assert 'air-quality' not in prompt_data
+
+
+def test_weather_prompt_keeps_solar_field_only_when_requested():
+  assistant = FakeAssistant()
+  controller = Controller(assistant)  # type: ignore[arg-type]
+
+  prompt_data = controller._format_prompt_data(
+    {
+      'weather': ForecastData(
+        temperature='34.8°C',
+        humidity='20%',
+        wind_speed='14.4 km/h',
+        sunrise='06:01:25',
+        sunset='21:51:24',
+      )
+    },
+    user_input='À quelle heure le soleil se couche à Paris ?',
+  )
+
+  assert 'sunset' in prompt_data
+  assert '21:51:24' in prompt_data
+  assert 'temperature' not in prompt_data
+  assert 'sunrise' not in prompt_data
