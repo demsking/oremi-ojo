@@ -72,11 +72,6 @@ class Settings(BaseSettings):
     description='Sampling temperature used by the configured LLM backend.',
   )
 
-  llm_system_prompt: str = Field(
-    default=('????'),
-    description='System prompt for the AI agent.',
-  )
-
   llm_max_response_tokens: int = Field(
     default=500,
     gt=10,

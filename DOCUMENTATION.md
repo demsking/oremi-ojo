@@ -201,7 +201,6 @@ OREMI_OJO_HTTP_CACHE_TTL_SECONDS=1800.0
 - **OREMI_OJO_LLM_REQUEST_TIMEOUT**: Timeout in seconds for LLM requests. Default is `15`.
 - **OREMI_OJO_LLM_TEMPERATURE**: Sampling temperature used by the agent. Default is `0.3`.
 - **OREMI_OJO_LLM_MAX_RESPONSE_TOKENS**: Maximum number of generated tokens. Default is `500`.
-- **OREMI_OJO_LLM_SYSTEM_PROMPT**: System prompt for the agent. Default is the bundled prompt.
 
 Example:
 

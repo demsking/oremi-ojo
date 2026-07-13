@@ -186,17 +186,12 @@ class AgentClient(Generic[OutputModel]):
   def _create_agent(self) -> PydanticAgent:
     return PydanticAgent(
       self.model,
-      instructions=self._system_prompt_for_cache() or (),
+      instructions=(),
       model_settings=self.model_settings,
     )
 
   def _parse_output(self, output: OutputModel) -> OutputModel:
     return output
-
-  def _system_prompt_for_cache(self) -> str | None:
-    module = __import__(type(self).__module__, fromlist=['SYSTEM_PROMPT'])
-
-    return getattr(module, 'SYSTEM_PROMPT', self.settings.llm_system_prompt)
 
   def _cache_key(
     self,
@@ -295,11 +290,7 @@ class AgentClient(Generic[OutputModel]):
     if self.agent is None:
       raise RuntimeError('Pydantic AI agent is not configured')
 
-    cache_key = (
-      self._cache_key(prompt, system_prompt=self._system_prompt_for_cache(), output_type=None)
-      if self.cache is not None
-      else None
-    )
+    cache_key = self._cache_key(prompt, system_prompt=None, output_type=None) if self.cache is not None else None
 
     async def run_request() -> Any:
       result: Any = await self.agent.run(prompt)  # pyright: ignore

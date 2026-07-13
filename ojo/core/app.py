@@ -82,11 +82,10 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       settings.should_use_native_ollama,
     )
     logger.info(
-      'App settings [generation]: request_timeout=%s temperature=%s max_response_tokens=%s system_prompt=%s',
+      'App settings [generation]: request_timeout=%s temperature=%s max_response_tokens=%s',
       settings.llm_request_timeout,
       settings.llm_temperature,
       settings.llm_max_response_tokens,
-      settings.llm_system_prompt.replace('\n', ' ').strip(),
     )
     logger.info('App settings [logging]: level=%s destination=%s', settings.log_level, settings.log_file or 'stderr')
     logger.info(
