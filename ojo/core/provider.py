@@ -14,10 +14,7 @@
 # ==============================================================================
 from abc import ABC
 
-from .controller import Controller
-
 
 class Provider(ABC):
-  def __init__(self, name: str, controller: Controller) -> None:
+  def __init__(self, name: str) -> None:
     self.name = name
-    self.controller = controller

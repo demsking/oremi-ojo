@@ -27,10 +27,13 @@ from ..core.controller import ResponseDataModel
 from ..core.geo import Location
 from ..core.models import ProcessRequest
 from ..core.models import ProcessResponse
-from ..providers.OpenMeteoAirQualityProvider import AirQualityData
-from ..providers.OpenMeteoForecastProvider import ForecastData
-from ..providers.OpenMeteoForecastProvider import TemperatureUnit
-from ..providers.OpenMeteoPollenProvider import PollenData
+from ..models.air_quality import AirQualityData
+from ..models.forecast import ForecastData
+from ..models.pollen import PollenData
+from ..services.air_quality_service import AirQualityService
+from ..services.forcast_service import ForecastService
+from ..services.forcast_service import TemperatureUnit
+from ..services.pollen_service import PollenService
 from ..tools.service_tool import GetServiceTool
 
 
@@ -45,18 +48,6 @@ API_TAG_METADATA = {
 
 
 router = APIRouter(prefix='/agent', tags=[API_TAG_METADATA['name']])
-
-OREMI_DEVICE_PREFERENCES_EXAMPLE = {
-  'location': 'Deido, Douala, Cameroun',
-  'timezone': 'Africa/Douala',
-  'temperature_unit': 'celsius',
-  'measurement_system': 'metric',
-  'distance_unit': 'kilometer',
-  'time_format': '24h',
-  'date_format': 'DD/MM/YYYY',
-  'latitude': 4.0637626,
-  'longitude': 9.7151827,
-}
 
 
 PAYLOAD_EXAMPLES: dict[str, Example] = {
@@ -75,7 +66,18 @@ PAYLOAD_EXAMPLES: dict[str, Example] = {
     'summary': 'Prévisions météo (FR)',
     'description': "Demande d'informations météo pour une ville spécifique.",
     'value': ProcessRequest.model_validate(
-      {'message': 'Quel temps fait-il à Paris ?', 'context': OREMI_DEVICE_PREFERENCES_EXAMPLE}
+      {
+        'message': 'Quel temps fait-il à Paris ?',
+        'context': {
+          'location': 'Paris, France',
+          'timezone': 'Europe/Paris',
+          'temperature_unit': 'celsius',
+          'measurement_system': 'metric',
+          'distance_unit': 'kilometer',
+          'latitude': 48.856614,
+          'longitude': 2.3522219,
+        },
+      }
     ),
   },
   'Sunset time (EN)': {
@@ -295,9 +297,9 @@ async def process_user_input(
   the regular response generator or the alert-focused response generator.
   """
   controller: Controller = request.app.state.controller
-  forecast = request.app.state.forecast_provider
-  air_quality = request.app.state.air_quality_provider
-  pollen = request.app.state.pollen_provider
+  forecast: ForecastService = request.app.state.forecast_service
+  air_quality: AirQualityService = request.app.state.air_quality_service
+  pollen: PollenService = request.app.state.pollen_service
 
   user_request = payload.message
   context = payload.context

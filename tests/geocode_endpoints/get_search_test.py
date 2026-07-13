@@ -14,10 +14,10 @@
 # ==============================================================================
 from fastapi.testclient import TestClient
 
-from server import api
+from ojo import app
 
 
-client = TestClient(api, backend='asyncio')
+client = TestClient(app, backend='asyncio')
 
 
 async def test_search_search_get():

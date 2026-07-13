@@ -14,37 +14,133 @@
 # ==============================================================================
 import datetime  # use implicit import to enable datatime mocking
 import logging
-from typing import Literal
+from typing import ClassVar, Literal
+from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfoNotFoundError
 
-import httpx
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
+from openmeteo_sdk.Unit import Unit
 
 from ..core.controller import Controller
-from ..core.provider import Provider
 from ..models.forecast import DailyForecastData
-from ..models.forecast import Forecast
 from ..models.forecast import ForecastData
+from ..providers.OpenMeteoProvider import OpenMeteoProvider
 
 logger = logging.getLogger(__name__)
 
 TemperatureUnit = Literal['celsius', 'fahrenheit']
 
 
-class OpenMeteoForecastProvider(Provider):
+UNIT_LABELS = {
+  Unit.celsius: '°C',
+  Unit.degree_direction: '°',
+  Unit.dimensionless_integer: '',
+  Unit.dimensionless: '',
+  Unit.fahrenheit: '°F',
+  Unit.hectopascal: 'hPa',
+  Unit.iso8601: 'iso8601',
+  Unit.kilometres_per_hour: 'km/h',
+  Unit.metre: 'm',
+  Unit.miles_per_hour: 'mph',
+  Unit.millimetre: 'mm',
+  Unit.percentage: '%',
+  Unit.seconds: 's',
+  Unit.unix_time: 'unixtime',
+  Unit.watt_per_square_metre: 'W/m²',
+  Unit.wmo_code: '',
+}
+
+xxx = {
+  'temperature_2m',
+  'relative_humidity_2m',
+  'dew_point_2m',
+  'apparent_temperature',
+  'precipitation_probability',
+  'precipitation',
+}
+
+
+class ForecastService:
   format: str = '%Y-%m-%dT%H:%M'
 
-  def __init__(self, controller: Controller) -> None:
-    super().__init__('Open-Météo', controller)
-    self.client = httpx.AsyncClient(
-      base_url='https://api.open-meteo.com',
-    )
+  ALLOWED_HOURLY: ClassVar[set[str]] = {
+    'temperature_2m',
+    'relative_humidity_2m',
+    'dew_point_2m',
+    'apparent_temperature',
+    'precipitation_probability',
+    'precipitation',
+    'rain',
+    'showers',
+    'snowfall',
+    'snow_depth',
+    'snowfall_water_equivalent',
+    'snow_depth_water_equivalent',
+    'weather_code',
+    'pressure_msl',
+    'surface_pressure',
+    'cloud_cover',
+    'cloud_cover_low',
+    'cloud_cover_mid',
+    'cloud_cover_high',
+    'visibility',
+    'evapotranspiration',
+    'et0_fao_evapotranspiration',
+    'vapour_pressure_deficit',
+    'runoff',
+    'precipitation_type',
+    'rain_probability',
+    'snowfall_probability',
+    'freezing_rain_probability',
+    'ice_pellets_probability',
+    'thunderstorm_probability',
+    'wind_speed_10m',
+    'wind_speed_20m',
+    'wind_speed_30m',
+    'wind_speed_40m',
+    'wind_speed_50m',
+    'wind_speed_70m',
+    'wind_speed_80m',
+    'wind_speed_100m',
+    'wind_speed_120m',
+    'wind_speed_140m',
+    'wind_speed_150m',
+    'wind_speed_160m',
+    'wind_speed_180m',
+    'wind_speed_200m',
+    'wind_direction_10m',
+    'wind_direction_20m',
+    'wind_direction_30m',
+    'wind_direction_40m',
+    'wind_direction_50m',
+    'wind_direction_70m',
+    'wind_direction_80m',
+    'wind_direction_100m',
+    'wind_direction_120m',
+    'wind_direction_140m',
+    'wind_direction_150m',
+    'wind_direction_160m',
+    'wind_direction_180m',
+    'wind_direction_200m',
+    'wind_gusts_10m',
+    'uv_index',
+    'uv_index_clear_sky',
+    'is_day',
+    'sunshine_duration',
+  }
 
-    # Setup the Open-Meteo API client with cache and retry on error
-    cache_session = requests_cache.CachedSession(cache_name='forecast-cache', backend='memory', expire_after=3600)
-    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-    self.openmeteo = openmeteo_requests.Client(session=retry_session)  # pyright: ignore
+  ALLOWED_DAILY: ClassVar[set[str]] = {'sunrise', 'sunset'}
+
+  NAME_MAPPING: ClassVar[dict[str, str]] = {
+    'relativehumidity_2m': 'relative_humidity_2m',
+    'windspeed_10m': 'wind_speed_10m',
+  }
+
+  def __init__(self, provider: OpenMeteoProvider) -> None:
+    self.provider = provider
+
+  @property
+  def name(self) -> str:
+    return self.provider.name
 
   @staticmethod
   def get_wind_direction(wind_direction: int) -> str:
@@ -63,6 +159,41 @@ class OpenMeteoForecastProvider(Provider):
     local_time = utc_time + datetime.timedelta(seconds=utc_offset_seconds)
 
     return local_time.time().isoformat()
+
+  @staticmethod
+  def _unit_label(unit: int) -> str:
+    return UNIT_LABELS.get(unit, '')
+
+  @staticmethod
+  def _value_at(values, index: int):
+    if values is None or isinstance(values, int) or len(values) <= index:
+      return None
+
+    value = values[index]
+    return value.item() if hasattr(value, 'item') else value
+
+  @staticmethod
+  def _current_timestamp(timezone: str | None) -> int:
+    if timezone and timezone != 'auto':
+      try:
+        return int(datetime.datetime.now(ZoneInfo(timezone)).replace(minute=0, second=0, microsecond=0).timestamp())
+      except ZoneInfoNotFoundError:
+        logger.warning('Unknown timezone %s, falling back to UTC', timezone)
+
+    now_utc = datetime.datetime.now(datetime.UTC).replace(minute=0, second=0, microsecond=0)
+    return int(now_utc.timestamp())
+
+  @staticmethod
+  def _time_index(series, timestamp: int) -> int:
+    start = series.Time()
+    interval = series.Interval() or 3600
+    length = series.Variables(0).ValuesLength() if series and series.VariablesLength() else 0  # type: ignore
+
+    if length <= 0:
+      return 0
+
+    index = round((timestamp - start) / interval)
+    return max(0, min(index, length - 1))
 
   async def fetch_daily(
     self,
@@ -130,7 +261,7 @@ class OpenMeteoForecastProvider(Provider):
       'temperature_unit': temperature_unit,
     }
 
-    responses = self.openmeteo.weather_api(url, params=params)
+    responses = self.provider.client.weather_api(url, params=params)
 
     # Process daily data. The order of variables needs to be the same as requested.
     response = responses[0]
@@ -163,85 +294,12 @@ class OpenMeteoForecastProvider(Provider):
     temperature_unit: TemperatureUnit,
     hourly_variables: list[str] | None = None,
     daily_variables: list[str] | None = None,
-  ) -> tuple[int, int, Forecast, list[str], list[str]]:
+  ):
     logger.info(f'Fetching forecast for geo ({lon}, {lat})')
 
-    allowed_hourly = {
-      'temperature_2m',
-      'relative_humidity_2m',
-      'dew_point_2m',
-      'apparent_temperature',
-      'precipitation_probability',
-      'precipitation',
-      'rain',
-      'showers',
-      'snowfall',
-      'snow_depth',
-      'snowfall_water_equivalent',
-      'snow_depth_water_equivalent',
-      'weather_code',
-      'pressure_msl',
-      'surface_pressure',
-      'cloud_cover',
-      'cloud_cover_low',
-      'cloud_cover_mid',
-      'cloud_cover_high',
-      'visibility',
-      'evapotranspiration',
-      'et0_fao_evapotranspiration',
-      'vapour_pressure_deficit',
-      'runoff',
-      'precipitation_type',
-      'rain_probability',
-      'snowfall_probability',
-      'freezing_rain_probability',
-      'ice_pellets_probability',
-      'thunderstorm_probability',
-      'wind_speed_10m',
-      'wind_speed_20m',
-      'wind_speed_30m',
-      'wind_speed_40m',
-      'wind_speed_50m',
-      'wind_speed_70m',
-      'wind_speed_80m',
-      'wind_speed_100m',
-      'wind_speed_120m',
-      'wind_speed_140m',
-      'wind_speed_150m',
-      'wind_speed_160m',
-      'wind_speed_180m',
-      'wind_speed_200m',
-      'wind_direction_10m',
-      'wind_direction_20m',
-      'wind_direction_30m',
-      'wind_direction_40m',
-      'wind_direction_50m',
-      'wind_direction_70m',
-      'wind_direction_80m',
-      'wind_direction_100m',
-      'wind_direction_120m',
-      'wind_direction_140m',
-      'wind_direction_150m',
-      'wind_direction_160m',
-      'wind_direction_180m',
-      'wind_direction_200m',
-      'wind_gusts_10m',
-      'uv_index',
-      'uv_index_clear_sky',
-      'is_day',
-      'sunshine_duration',
-    }
-
-    allowed_daily = {'sunrise', 'sunset'}
-
-    name_mapping = {
-      'relativehumidity_2m': 'relative_humidity_2m',
-      'windspeed_10m': 'wind_speed_10m',
-    }
-
     if hourly_variables is not None:
-      hourly_vars = [name_mapping.get(var, var) for var in hourly_variables]
-      hourly_vars = [var for var in hourly_vars if var in allowed_hourly]
+      hourly_vars = [ForecastService.NAME_MAPPING.get(var, var) for var in hourly_variables]
+      hourly_vars = [var for var in hourly_vars if var in ForecastService.ALLOWED_HOURLY]
     else:
       hourly_vars = []
 
@@ -249,24 +307,22 @@ class OpenMeteoForecastProvider(Provider):
       hourly_vars = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m']
 
     if daily_variables is not None:
-      daily_vars = [var for var in daily_variables if var in allowed_daily]
+      daily_vars = [var for var in daily_variables if var in ForecastService.ALLOWED_DAILY]
     else:
       daily_vars = []
 
     if not daily_vars:
       daily_vars = ['sunrise', 'sunset']
 
-    current_time = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
-    current_time_str = current_time.isoformat()[0:-3]
-    current_date = current_time.date().isoformat()
+    current_date = datetime.datetime.now().date().isoformat()
 
-    response = await self.client.get(
-      '/v1/forecast',
+    responses = self.provider.client.weather_api(
+      'https://api.open-meteo.com/v1/forecast',
       params={
         'latitude': lat,
         'longitude': lon,
-        'hourly': ','.join(hourly_vars),
-        'daily': ','.join(daily_vars),
+        'hourly': hourly_vars,
+        'daily': daily_vars,
         'timezone': timezone or 'auto',
         'start_date': current_date,
         'end_date': current_date,
@@ -274,12 +330,36 @@ class OpenMeteoForecastProvider(Provider):
       },
     )
 
-    forecast = Forecast.model_validate_json(response.text)
+    response = responses[0]
+    hourly = response.Hourly()
+    daily = response.Daily()
+    utc_offset_seconds = response.UtcOffsetSeconds()
+    hourly_index = self._time_index(hourly, self._current_timestamp(timezone)) if hourly else 0
+    daily_index = 0
 
-    hourly_index = forecast.hourly.time.index(current_time_str)
-    daily_index = forecast.daily.time.index(current_date)  # type: ignore
+    hourly_data: dict[str, object] = {}
+    hourly_units: dict[str, str] = {}
 
-    return daily_index, hourly_index, forecast, hourly_vars, daily_vars
+    for index, var_name in enumerate(hourly_vars):
+      variable = hourly.Variables(index) if hourly else None  # type: ignore
+      hourly_data[var_name] = self._value_at(variable.ValuesAsNumpy(), hourly_index) if variable else None
+      hourly_units[var_name] = self._unit_label(variable.Unit()) if variable else ''
+
+    daily_data: dict[str, object] = {}
+
+    for index, var_name in enumerate(daily_vars):
+      variable = daily.Variables(index) if daily else None  # type: ignore
+
+      if not variable:
+        daily_data[var_name] = None
+      elif var_name in ('sunrise', 'sunset'):
+        daily_data[var_name] = self.format_unix_time(
+          self._value_at(variable.ValuesInt64AsNumpy(), daily_index), utc_offset_seconds
+        )
+      else:
+        daily_data[var_name] = self._value_at(variable.ValuesAsNumpy(), daily_index)
+
+    return hourly_data, hourly_units, daily_data, hourly_vars
 
   async def fetch(
     self,
@@ -291,7 +371,7 @@ class OpenMeteoForecastProvider(Provider):
     hourly_variables: list[str] | None = None,
     daily_variables: list[str] | None = None,
   ) -> ForecastData:
-    daily_index, hourly_index, forecast, hourly_vars, _daily_vars = await self._fetch_hourly(  # pylint: disable=unused-variable
+    hourly_dict, hourly_units_dict, daily_dict, hourly_vars = await self._fetch_hourly(
       lon=lon,
       lat=lat,
       timezone=timezone,
@@ -301,14 +381,12 @@ class OpenMeteoForecastProvider(Provider):
     )
 
     data = {}
-    hourly_dict = forecast.hourly.model_dump()
-    hourly_units_dict = forecast.hourly_units.model_dump()
 
     # Find temperature
     temp_val, temp_unit = None, None
     for k in ('temperature_2m', 'temperature'):
       if k in hourly_dict and hourly_dict[k] is not None:
-        temp_val = hourly_dict[k][hourly_index]
+        temp_val = hourly_dict[k]
         temp_unit = hourly_units_dict.get(k, '')
         break
 
@@ -319,7 +397,7 @@ class OpenMeteoForecastProvider(Provider):
     hum_val, hum_unit = None, None
     for k in ('relative_humidity_2m', 'relativehumidity_2m', 'humidity'):
       if k in hourly_dict and hourly_dict[k] is not None:
-        hum_val = hourly_dict[k][hourly_index]
+        hum_val = hourly_dict[k]
         hum_unit = hourly_units_dict.get(k, '')
         break
 
@@ -330,7 +408,7 @@ class OpenMeteoForecastProvider(Provider):
     wind_val, wind_unit = None, None
     for k in ('wind_speed_10m', 'windspeed_10m', 'wind_speed'):
       if k in hourly_dict and hourly_dict[k] is not None:
-        wind_val = hourly_dict[k][hourly_index]
+        wind_val = hourly_dict[k]
         wind_unit = hourly_units_dict.get(k, '')
         break
 
@@ -338,22 +416,17 @@ class OpenMeteoForecastProvider(Provider):
       data['wind_speed'] = f'{wind_val} {wind_unit}'.strip()
 
     # Process daily (sunrise/sunset)
-    if forecast.daily and forecast.daily_units:
-      daily_dict = forecast.daily.model_dump()
+    if daily_dict.get('sunrise'):
+      data['sunrise'] = daily_dict['sunrise']
 
-      if daily_dict.get('sunrise'):
-        sunrise_date = datetime.datetime.strptime(daily_dict['sunrise'][daily_index], self.format)
-        data['sunrise'] = str(sunrise_date.time())
-
-      if daily_dict.get('sunset'):
-        sunset_date = datetime.datetime.strptime(daily_dict['sunset'][daily_index], self.format)
-        data['sunset'] = str(sunset_date.time())
+    if daily_dict.get('sunset'):
+      data['sunset'] = daily_dict['sunset']
 
     # Populate any other hourly variables directly
     for var in hourly_vars:
       if var not in ('temperature_2m', 'relative_humidity_2m', 'relativehumidity_2m', 'wind_speed_10m', 'windspeed_10m'):
         if var in hourly_dict and hourly_dict[var] is not None:
-          val = hourly_dict[var][hourly_index]
+          val = hourly_dict[var]
           unit = hourly_units_dict.get(var, '')
           data[var] = f'{val}{unit}' if unit else val
 

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from functools import cached_property
 from functools import lru_cache
 from typing import Literal
 
@@ -119,6 +120,16 @@ class Settings(BaseSettings):
     description='TTL in seconds for cacheable internal LLM calls.',
   )
 
+  http_cache_ttl_seconds: float = Field(
+    default=3600.0,
+    ge=0.0,
+    le=86400.0,
+    description=(
+      'TTL in seconds for external HTTP cache sessions. Default: 3600.0, matching the fastest hourly '
+      'weather data refresh cadence used by the shared forecast and air-quality providers.'
+    ),
+  )
+
   log_level: Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'] = Field(default='INFO', description='Logging level.')
   log_file: str | None = Field(default=None, description='Path to rotating log file.')
 
@@ -139,16 +150,18 @@ class Settings(BaseSettings):
 
     return value
 
-  def uses_ollama(self) -> bool:
+  @cached_property
+  def should_use_native_ollama(self) -> bool:
     """Return whether the active agent model uses the Ollama backend."""
 
     return self.llm_model.startswith('ollama:')
 
-  def resolve_ollama_model_name(self) -> str:
+  @cached_property
+  def ollama_model_name(self) -> str:
     """Return the Ollama model name without provider prefix."""
     return self.llm_model.removeprefix('ollama:')  # pylint: disable=no-member
 
-  @property
+  @cached_property
   def ollama_base_url_string(self) -> str:
     """Return the Ollama base URL for Pydantic AI."""
     if self.ollama_base_url is None:

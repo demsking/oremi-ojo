@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import logging
-from abc import abstractmethod
 from collections.abc import Callable
 from collections.abc import Sequence
 from typing import Any
@@ -34,8 +33,11 @@ from ollama import Options
 from ollama import ResponseError
 from ollama import Tool
 from pydantic import BaseModel
+from pydantic import Field
 from pydantic_ai import Agent as PydanticAgent
 from pydantic_ai import ModelSettings
+from pydantic_ai.models.ollama import OllamaModel
+from pydantic_ai.providers.ollama import OllamaProvider
 
 from ..core.settings import Settings
 from ..utils.cache import SmartCache
@@ -61,12 +63,11 @@ class AgentClient(Generic[OutputModel]):
   def __init__(self, settings: Settings, client: httpx.AsyncClient, cache: SmartCache | None = None):
     self.settings = settings
     self.cache = cache
-    self.uses_native_ollama = settings.uses_ollama()
-    self.ollama_model_name = settings.resolve_ollama_model_name() if self.uses_native_ollama else ''
+    self.is_available = not settings.should_use_native_ollama or settings.ollama_base_url is not None
 
     self.ollama_client = (
       ollama.AsyncClient(host=settings.ollama_base_url_string, timeout=settings.llm_request_timeout)
-      if self.uses_native_ollama
+      if self.settings.should_use_native_ollama and settings.ollama_base_url is not None
       else None
     )
 
@@ -77,56 +78,79 @@ class AgentClient(Generic[OutputModel]):
       thinking=False,
     )
 
-    self.model = None if self.uses_native_ollama else AgentClient.build_model(settings, self.model_settings, client)
-    self.agent = None if self.uses_native_ollama else self._create_agent()
+    self.model = (
+      None if self.settings.should_use_native_ollama or not self.is_available else AgentClient.build_model(settings, client)
+    )
+    self.agent = None if self.model is None else self._create_agent()
 
-  def create_agent(self, system: str | None) -> 'OllamaAgent':
-    if not self.uses_native_ollama or self.ollama_client is None:
-      raise RuntimeError('Native Ollama agent creation requires an ollama: model and configured Ollama client')
+  def create_agent(self, system: str | None) -> 'OllamaAgent | PydanticGenerateAgent | UnavailableOllamaAgent':
+    if self.settings.should_use_native_ollama:
+      if self.ollama_client is None:
+        return UnavailableOllamaAgent(system=system)
 
-    return OllamaAgent(
-      client=self.ollama_client,
-      model=self.ollama_model_name,
+      return OllamaAgent(
+        client=self.ollama_client,
+        model=self.settings.ollama_model_name,
+        system=system,
+      )
+
+    if self.model is None:
+      return UnavailableOllamaAgent(system=system)
+
+    return PydanticGenerateAgent(
+      model=self.model,
+      model_settings=self.model_settings,
       system=system,
     )
 
-  def create_tools_agent(self, tools: list[Tool], system: str | None = None) -> 'OllamaToolsAgent':
-    if not self.uses_native_ollama or self.ollama_client is None:
-      raise RuntimeError('Native Ollama tool agent creation requires an ollama: model and configured Ollama client')
+  def create_tools_agent(
+    self, tools: list[Tool], system: str | None = None
+  ) -> 'OllamaToolsAgent | PydanticToolsAgent | UnavailableOllamaToolsAgent':
+    if self.settings.should_use_native_ollama:
+      if self.ollama_client is None:
+        return UnavailableOllamaToolsAgent(system=system)
 
-    return OllamaToolsAgent(
-      client=self.ollama_client,
-      model=self.ollama_model_name,
+      return OllamaToolsAgent(
+        client=self.ollama_client,
+        model=self.settings.ollama_model_name,
+        tools=tools,
+        system=system,
+      )
+
+    if self.model is None:
+      return UnavailableOllamaToolsAgent(system=system)
+
+    return PydanticToolsAgent(
+      model=self.model,
+      model_settings=self.model_settings,
       tools=tools,
       system=system,
     )
 
   async def load_model(self) -> None:
-    if not self.uses_native_ollama:
+    if not self.settings.should_use_native_ollama:
       return
 
     if self.ollama_client is None:
       raise RuntimeError('Native Ollama client is not configured')
 
-    model_name = self.settings.resolve_ollama_model_name()
-
     try:
-      logger.info(f'Pulling model {model_name}...')
-      await self.ollama_client.pull(model_name, stream=False)
+      logger.info(f'Pulling model {self.settings.ollama_model_name}...')
+      await self.ollama_client.pull(self.settings.ollama_model_name, stream=False)
 
-      logger.info(f'Loading model {model_name}...')
-      await self.ollama_client.generate(model=model_name, keep_alive=-1, stream=False)
+      logger.info(f'Loading model {self.settings.ollama_model_name}...')
+      await self.ollama_client.generate(model=self.settings.ollama_model_name, keep_alive=-1, stream=False)
     except httpx.ReadTimeout as error:
-      self._log_model_load_timeout(model_name, error)
+      self._log_model_load_timeout(self.settings.ollama_model_name, error)
       return
     except ResponseError as error:
       if error.status_code != 499:
         raise
 
-      self._log_model_load_timeout(model_name, error)
+      self._log_model_load_timeout(self.settings.ollama_model_name, error)
       return
 
-    logger.info(f'Ollama model ready: {model_name}')
+    logger.info(f'Ollama model ready: {self.settings.ollama_model_name}')
 
   @staticmethod
   def _log_model_load_timeout(model_name: str, error: Exception) -> None:
@@ -137,13 +161,24 @@ class AgentClient(Generic[OutputModel]):
     )
 
   @staticmethod
-  def build_model(settings: Settings, model_settings: ModelSettings, client: httpx.AsyncClient) -> str:
-    del model_settings, client
+  def build_model(settings: Settings, client: httpx.AsyncClient) -> Any:
+    if settings.should_use_native_ollama:
+      return OllamaModel(
+        settings.ollama_model_name,
+        provider=OllamaProvider(
+          base_url=settings.ollama_base_url_string,
+          http_client=client,
+        ),
+      )
+
     return settings.llm_model
 
-  @abstractmethod
   def _create_agent(self) -> PydanticAgent:
-    raise NotImplementedError
+    return PydanticAgent(
+      self.model,
+      instructions=self._system_prompt_for_cache() or (),
+      model_settings=self.model_settings,
+    )
 
   def _parse_output(self, output: OutputModel) -> OutputModel:
     return output
@@ -221,7 +256,7 @@ class AgentClient(Generic[OutputModel]):
 
     async def run_request() -> Any:
       response = await self.ollama_client.chat(  # pyright: ignore
-        model=self.ollama_model_name,
+        model=self.settings.ollama_model_name,
         messages=messages,
         stream=False,
         think=False,
@@ -243,7 +278,7 @@ class AgentClient(Generic[OutputModel]):
     return content
 
   async def _run(self, prompt: str) -> OutputModel:
-    if self.uses_native_ollama:
+    if self.settings.should_use_native_ollama:
       output = await self._run_ollama(prompt, system_prompt=None)
       return self._parse_output(output)
 
@@ -326,6 +361,22 @@ class OllamaAgent:
       return None
 
 
+class UnavailableOllamaAgent:
+  """No-op generation wrapper used when Ollama is intentionally unconfigured."""
+
+  def __init__(self, *, system: str | None = None) -> None:
+    self.system = system
+
+  async def generate(
+    self,
+    prompt: str,
+    options: Options | None = None,
+  ) -> None:
+    del prompt, options
+    logger.warning('Skipping LLM generation because OREMI_OJO_OLLAMA_BASE_URL is not configured')
+    return None
+
+
 class OllamaToolsAgent:
   """Native Ollama tool agent wrapper backed by a shared AsyncClient."""
 
@@ -369,3 +420,115 @@ class OllamaToolsAgent:
       return None
 
     return response.message.tool_calls or None
+
+
+class PydanticGenerateResponse:
+  def __init__(self, response: str) -> None:
+    self.response = response
+
+
+class PydanticToolFunction(BaseModel):
+  name: str = Field(..., description='Name of the selected tool to call.')
+  arguments: dict[str, Any] = Field(default_factory=dict, description='Arguments to pass to the selected tool.')
+
+
+class PydanticToolCalls(BaseModel):
+  calls: list[PydanticToolFunction] = Field(default_factory=list, description='Selected tool calls.')
+
+
+class PydanticGenerateAgent:
+  """Generation wrapper backed by Pydantic AI."""
+
+  def __init__(self, *, model: Any, model_settings: ModelSettings, system: str | None = None) -> None:
+    self.agent = PydanticAgent(
+      model,
+      instructions=system or (),
+      model_settings=model_settings,
+    )
+
+  async def generate(
+    self,
+    prompt: str,
+    options: Options | None = None,
+  ) -> PydanticGenerateResponse | None:
+    del options
+    logger.debug(f'Generating with prompt:\n{prompt}')
+
+    result: Any = await self.agent.run(prompt)
+
+    return PydanticGenerateResponse(str(result.output or ''))
+
+
+class PydanticToolsAgent:
+  """Tool-selection wrapper backed by Pydantic AI structured output."""
+
+  def __init__(self, *, model: Any, model_settings: ModelSettings, tools: list[Tool], system: str | None = None) -> None:
+    self.model = model
+    self.model_settings = model_settings
+    self.system = system
+    self.tools = tools
+
+  @staticmethod
+  def _tool_name(tool: Tool) -> str | None:
+    return tool.function.name if tool.function else None
+
+  @staticmethod
+  def _tool_prompt(tools: list[Tool]) -> str:
+    tool_definitions = [tool.model_dump(exclude_none=True) for tool in tools]
+
+    return (
+      'Select the tool calls needed to satisfy the user request. '
+      'Return only tools from the available tool definitions. '
+      'Use an empty calls list when no available tool applies.\n'
+      f'Available tools: {json.dumps(tool_definitions, ensure_ascii=False)}'
+    )
+
+  async def query(
+    self,
+    message: str,
+    tools: list[Tool] | None = None,
+  ) -> Sequence[Message.ToolCall] | None:
+    active_tools = tools or self.tools
+    tool_names = {name for tool in active_tools if (name := self._tool_name(tool))}
+    instructions = '\n'.join(part for part in (self.system, self._tool_prompt(active_tools)) if part)
+    agent = PydanticAgent(
+      self.model,
+      output_type=PydanticToolCalls,
+      instructions=instructions,
+      model_settings=self.model_settings,
+    )
+
+    logger.debug(f'Querying with message {message}')
+    result: Any = await agent.run(message)
+    calls: list[Message.ToolCall] = []
+
+    for call in result.output.calls:
+      if call.name not in tool_names:
+        continue
+
+      calls.append(
+        Message.ToolCall(
+          function=Message.ToolCall.Function(
+            name=call.name,
+            arguments=call.arguments,
+          )
+        )
+      )
+
+    return calls or None
+
+
+class UnavailableOllamaToolsAgent:
+  """No-op tool wrapper used when Ollama is intentionally unconfigured."""
+
+  def __init__(self, *, system: str | None = None) -> None:
+    self.system = system
+
+  async def query(
+    self,
+    message: str,
+    tools: list[Tool] | None = None,
+  ) -> None:
+    del message, tools
+    logger.warning('Skipping LLM tool extraction because OREMI_OJO_OLLAMA_BASE_URL is not configured')
+    return None

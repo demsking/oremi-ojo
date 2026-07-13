@@ -30,9 +30,10 @@ from ..api import health
 from ..core.controller import Controller
 from ..core.geo import NotFoundLocationException
 from ..llm.agent import AgentClient
-from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
-from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from ..providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
+from ..providers.OpenMeteoProvider import OpenMeteoProvider
+from ..services.air_quality_service import AirQualityService
+from ..services.forcast_service import ForecastService
+from ..services.pollen_service import PollenService
 from ..utils.cache import SmartCache
 from ..utils.logger import configure_logging
 from ..utils.url import safe_url
@@ -43,6 +44,20 @@ from .settings import Settings
 
 
 logger = logging.getLogger(__name__)
+
+
+def configure_app_state(app: FastAPI, settings: Settings, client: httpx.AsyncClient) -> None:
+  smart_cache = SmartCache(enabled=settings.cache_enabled, max_entries=settings.cache_max_entries)
+  assistant = AgentClient(settings, client, smart_cache)
+  controller = Controller(assistant)
+  openmeteo = OpenMeteoProvider(settings)
+
+  app.state.client = client
+  app.state.settings = settings
+  app.state.controller = controller
+  app.state.forecast_service = ForecastService(openmeteo)
+  app.state.air_quality_service = AirQualityService(openmeteo)
+  app.state.pollen_service = PollenService(openmeteo)
 
 
 def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None) -> FastAPI:
@@ -61,9 +76,10 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       'App settings [server]: host=%s port=%s api_prefix=%s', settings.server_host, settings.server_port, settings.api_prefix
     )
     logger.info(
-      'App settings [ollama]: model=%s base_url=%s',
+      'App settings [ollama]: model=%s base_url=%s native=%s',
       settings.llm_model,
       safe_url(settings.ollama_base_url_string if settings.ollama_base_url is not None else None),
+      settings.should_use_native_ollama,
     )
     logger.info(
       'App settings [generation]: request_timeout=%s temperature=%s max_response_tokens=%s system_prompt=%s',
@@ -74,37 +90,24 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
     )
     logger.info('App settings [logging]: level=%s destination=%s', settings.log_level, settings.log_file or 'stderr')
     logger.info(
-      'App settings [smart_cache]: enabled=%s max_entries=%s llm_ttl_seconds=%s',
+      'App settings [cache]: enabled=%s max_entries=%s llm_ttl_seconds=%s http_ttl_seconds=%s',
       settings.cache_enabled,
       settings.cache_max_entries,
       settings.cache_llm_ttl_seconds,
+      settings.http_cache_ttl_seconds,
     )
 
-    client = http_client or httpx.AsyncClient(timeout=settings.request_timeout)
-    smart_cache = SmartCache(enabled=settings.cache_enabled, max_entries=settings.cache_max_entries)
-    assistant = AgentClient(settings, client, smart_cache)
+    client = app.state.client
 
     try:
-      if settings.uses_ollama():
+      if settings.should_use_native_ollama:
         if settings.ollama_base_url is None:
           logger.warning('OREMI_OJO_OLLAMA_BASE_URL is not configured; LLM-backed endpoints will be unavailable')
         else:
-          await assistant.load_model()
-
-      app.state.client = client
-      app.state.settings = settings
-
-      controller = Controller(assistant)
-      forecast_provider = OpenMeteoForecastProvider(controller)
-      air_quality_provider = OpenMeteoAirQualityProvider(controller)
-      pollen_provider = OpenMeteoPollenProvider(controller)
-
-      app.state.controller = controller
-      app.state.forecast_provider = forecast_provider
-      app.state.air_quality_provider = air_quality_provider
-      app.state.pollen_provider = pollen_provider
+          await app.state.controller.assistant.load_model()
 
       logger.info(f'Oremi Ojọ ready: duration_ms={(perf_counter() - startup_started) * 1000:.1f}')
+      ready = True
 
       yield
     finally:
@@ -140,6 +143,7 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       health.API_TAG_METADATA,
     ],
   )
+  configure_app_state(app, settings, http_client or httpx.AsyncClient(timeout=settings.request_timeout))
 
   @app.exception_handler(Exception)
   async def unhandled_exception_handler(_, exc: Exception) -> JSONResponse:

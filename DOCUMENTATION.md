@@ -186,11 +186,12 @@ These variables control internal LLM caching and response generation.
 - **OREMI_OJO_CACHE_ENABLED**: Enables the bounded internal cache. Default is `true`.
 - **OREMI_OJO_CACHE_MAX_ENTRIES**: Maximum number of cached entries kept in memory. Default is `512`.
 - **OREMI_OJO_CACHE_LLM_TTL_SECONDS**: TTL in seconds for cacheable LLM calls. Default is `300.0`.
+- **OREMI_OJO_HTTP_CACHE_TTL_SECONDS**: TTL in seconds for external HTTP cache sessions. Default is `3600.0`, matching the fastest hourly weather data refresh cadence used by the shared weather, air-quality, and pollen providers.
 
 ### Ollama Configuration
 
 - **OREMI_OJO_OLLAMA_BASE_URL**: Base URL of the Ollama API. Required when using an `ollama:` model.
-- **OREMI_OJO_LLM_MODEL**: Model name to use for the agent. If it starts with `ollama:`, the prefix is stripped before the Ollama client is created. Default is `"ollama:qwen3.5:2b"`.
+- **OREMI_OJO_LLM_MODEL**: Model name to use for the agent. If it starts with `ollama:`, the prefix is stripped before creating the Ollama-backed model. Default is `"ollama:qwen3.5:2b"`.
 - **OREMI_OJO_LLM_REQUEST_TIMEOUT**: Timeout in seconds for LLM requests. Default is `15`.
 - **OREMI_OJO_LLM_TEMPERATURE**: Sampling temperature used by the agent. Default is `0.3`.
 - **OREMI_OJO_MAX_RESPONSE_TOKENS**: Maximum number of generated tokens. Default is `500`.

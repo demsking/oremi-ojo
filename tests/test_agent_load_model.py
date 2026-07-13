@@ -6,6 +6,8 @@ from types import ModuleType
 import pytest
 import httpx
 from ollama import ResponseError
+from ollama import Tool
+from pydantic_ai.models.test import TestModel
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +30,8 @@ def load_project_module(module_name: str):
 
 Settings = load_project_module('ojo.core.settings').Settings
 AgentClient = load_project_module('ojo.llm.agent').AgentClient
+PydanticGenerateAgent = load_project_module('ojo.llm.agent').PydanticGenerateAgent
+PydanticToolsAgent = load_project_module('ojo.llm.agent').PydanticToolsAgent
 
 
 class FakeOllamaClient:
@@ -58,6 +62,50 @@ def make_agent(fake_ollama_client: FakeOllamaClient) -> AgentClient:
   agent.ollama_client = fake_ollama_client  # type: ignore[assignment]
 
   return agent
+
+
+async def test_pydantic_generate_agent_returns_ollama_compatible_response():
+  agent = PydanticGenerateAgent(
+    model=TestModel(custom_output_text='Bonjour'),
+    model_settings={},
+    system='test',
+  )
+
+  result = await agent.generate('hello')
+
+  assert result is not None
+  assert result.response == 'Bonjour'
+
+
+async def test_pydantic_tools_agent_returns_ollama_compatible_tool_calls():
+  agent = PydanticToolsAgent(
+    model=TestModel(
+      custom_output_args={
+        'calls': [
+          {
+            'name': 'handle_context_location',
+            'arguments': {'location': 'Douala'},
+          }
+        ]
+      }
+    ),
+    model_settings={},
+    system='test',
+    tools=[
+      Tool(
+        function=Tool.Function(
+          name='handle_context_location',
+          description='Handle context location',
+        )
+      )
+    ],
+  )
+
+  result = await agent.query('weather in Douala')
+
+  assert result is not None
+  assert result[0].function.name == 'handle_context_location'
+  assert result[0].function.arguments == {'location': 'Douala'}
 
 
 async def test_load_model_continues_after_read_timeout():

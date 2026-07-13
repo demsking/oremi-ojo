@@ -15,20 +15,19 @@
 import logging
 from typing import ClassVar
 
-import httpx
+from openmeteo_sdk.Unit import Unit
 
-from ..core.controller import Controller
 from ..core.geo import Location
-from ..core.provider import Provider
 from ..models.pollen import PollenData
 from ..models.pollen import PollenDetail
 from ..models.pollen import PollenName
 from ..models.pollen import PollenSeverity
+from ..providers.OpenMeteoProvider import OpenMeteoProvider
 
 logger = logging.getLogger(__name__)
 
 
-class OpenMeteoPollenProvider(Provider):
+class PollenService:
   """
   Open-Meteo Air Quality API (pollen)
 
@@ -36,6 +35,8 @@ class OpenMeteoPollenProvider(Provider):
 
   See https://open-meteo.com/en/docs/air-quality-api
   """
+
+  SOURCE = 'Copernicus Atmosphere Monitoring Service (CAMS)'
 
   POLLEN_FIELDS: ClassVar[dict[PollenName, str]] = {
     PollenName.ALDER: 'alder_pollen',
@@ -64,17 +65,21 @@ class OpenMeteoPollenProvider(Provider):
     PollenName.RAGWEED: _GRASS,  # ← corrigé (était custom, doit être = grass)
   }
 
-  def __init__(self, controller: Controller) -> None:
-    super().__init__('Copernicus Atmosphere Monitoring Service (CAMS)', controller)
+  UNIT_LABELS: ClassVar[dict[int, str]] = {
+    Unit.grains_per_cubic_metre: 'grains/m³',
+  }
 
-    self.client = httpx.AsyncClient(
-      base_url='https://air-quality-api.open-meteo.com',
-    )
+  def __init__(self, provider: OpenMeteoProvider) -> None:
+    self.provider = provider
+
+  @property
+  def name(self) -> str:
+    return self.SOURCE
 
   @staticmethod
   def _classify_pollen(pollen_name: PollenName, value: float) -> PollenSeverity:
     # Récupération des 5 seuils configurés
-    thresholds = OpenMeteoPollenProvider.SILAM_THRESHOLDS[pollen_name]
+    thresholds = PollenService.SILAM_THRESHOLDS[pollen_name]
     v_low, low, mod, high, v_high = thresholds
 
     if value < v_low:
@@ -94,34 +99,37 @@ class OpenMeteoPollenProvider(Provider):
 
     return PollenSeverity.EXTREMELY_HIGH
 
+  @classmethod
+  def _unit_label(cls, unit: int) -> str:
+    return cls.UNIT_LABELS.get(unit, 'grains/m³')
+
   async def fetch(self, lon: float, *, lat: float) -> PollenData | None:
     logger.info(f'Fetching pollens data for lon={lon} lat={lat}')
-    response = await self.client.get(
-      url='/v1/air-quality',
+
+    responses = self.provider.client.weather_api(
+      'https://air-quality-api.open-meteo.com/v1/air-quality',
       params={
         'latitude': lat,
         'longitude': lon,
-        'current': ','.join(OpenMeteoPollenProvider.POLLEN_FIELDS.values()),
+        'current': list(PollenService.POLLEN_FIELDS.values()),
       },
     )
 
-    response_data = response.json()
-    current = response_data.get('current', {})
-    current_units = response_data.get('current_units', {})
+    current = responses[0].Current()
+    current_values = {}
+    current_units = {}
 
-    pollen_levels = {
-      pollen_name: float(current.get(field, 0) or 0) for pollen_name, field in OpenMeteoPollenProvider.POLLEN_FIELDS.items()
-    }
+    for index, (pollen_name, _field) in enumerate(PollenService.POLLEN_FIELDS.items()):
+      variable = current.Variables(index) if current else None  # type: ignore
+      current_values[pollen_name] = float(variable.Value() if variable else 0)
+      current_units[pollen_name] = self._unit_label(variable.Unit()) if variable else 'grains/m³'
 
-    pollen_units = {
-      pollen_name: str(current_units.get(field, 'grains/m³'))
-      for pollen_name, field in OpenMeteoPollenProvider.POLLEN_FIELDS.items()
-    }
+    pollen_levels = {pollen_name: current_values[pollen_name] for pollen_name in PollenService.POLLEN_FIELDS}
 
     pollen_details = {
       pollen_name: PollenDetail(
         level=value,
-        severity=OpenMeteoPollenProvider._classify_pollen(pollen_name, value),
+        severity=PollenService._classify_pollen(pollen_name, value),
       )
       for pollen_name, value in pollen_levels.items()
     }
@@ -134,7 +142,7 @@ class OpenMeteoPollenProvider(Provider):
 
     return PollenData(
       pollen_names=pollen_names or None,
-      units=pollen_units.get(dominant_pollen, 'grains/m³') if dominant_pollen else 'grains/m³',
+      units=current_units.get(dominant_pollen, 'grains/m³') if dominant_pollen else 'grains/m³',
       dominant_pollen=dominant_pollen,
       details=pollen_details,
     )

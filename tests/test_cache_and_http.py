@@ -1,9 +1,6 @@
 import asyncio
 import importlib.util
-from datetime import timedelta
 from pathlib import Path
-import httpx
-import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +14,7 @@ def load_module(module_name: str, relative_path: str):
   return module
 
 
-cache_module = load_module('ojo.utils.cache', 'weather/utils/cache.py')
+cache_module = load_module('ojo.utils.cache', 'ojo/utils/cache.py')
 
 SmartCache = cache_module.SmartCache
 

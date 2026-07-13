@@ -20,14 +20,14 @@ from fastapi import Query
 from fastapi import Request
 from pydantic import BaseModel
 
-from ..providers.OpenMeteoAirQualityProvider import EAQIData
-from ..providers.OpenMeteoAirQualityProvider import OpenMeteoAirQualityProvider
-from ..providers.OpenMeteoAirQualityProvider import USAQIData
-from ..providers.OpenMeteoForecastProvider import ForecastData
-from ..providers.OpenMeteoForecastProvider import OpenMeteoForecastProvider
-from ..providers.OpenMeteoForecastProvider import TemperatureUnit
-from ..providers.OpenMeteoPollenProvider import OpenMeteoPollenProvider
-from ..providers.OpenMeteoPollenProvider import PollenData
+from ..models.air_quality import EAQIData
+from ..models.air_quality import USAQIData
+from ..models.forecast import ForecastData
+from ..models.pollen import PollenData
+from ..services.air_quality_service import AirQualityService
+from ..services.forcast_service import ForecastService
+from ..services.forcast_service import TemperatureUnit
+from ..services.pollen_service import PollenService
 
 
 API_TAG_METADATA = {
@@ -109,11 +109,11 @@ async def get_forecast(
 
   It returns the name of the provider and the structured weather data.
   """
-  forecast_provider: OpenMeteoForecastProvider = request.app.state.forecast_provider
+  forecast_service: ForecastService = request.app.state.forecast_service
 
   return Response[ForecastData](
-    provider=forecast_provider.name,
-    data=await forecast_provider.fetch(lat=lat, lon=lon, timezone=timezone, temperature_unit=temperature_unit),
+    provider=forecast_service.name,
+    data=await forecast_service.fetch(lat=lat, lon=lon, timezone=timezone, temperature_unit=temperature_unit),
   )
 
 
@@ -153,11 +153,11 @@ async def get_air_quality(
   The response includes the provider name and a structured representation
   of the air quality data based on either EAQI or USAQI standards.
   """
-  air_quality_provider: OpenMeteoAirQualityProvider = request.app.state.air_quality_provider
-  data = await air_quality_provider.fetch(lat=lat, lon=lon)
+  air_quality_service: AirQualityService = request.app.state.air_quality_service
+  data = await air_quality_service.fetch(lat=lat, lon=lon)
 
   return Response[EAQIData | USAQIData](
-    provider=air_quality_provider.name,
+    provider=air_quality_service.name,
     data=data,
   )
 
@@ -211,9 +211,9 @@ async def get_pollen(
   The response includes the data provider and a structured payload detailing
   pollen types, units, and per-pollen concentration plus SILAM severity.
   """
-  pollen_provider: OpenMeteoPollenProvider = request.app.state.pollen_provider
+  pollen_service: PollenService = request.app.state.pollen_service
 
   return Response[PollenData](
-    provider=pollen_provider.name,  # type: ignore
-    data=await pollen_provider.fetch(lat=lat, lon=lon),  # type: ignore
+    provider=pollen_service.name,  # type: ignore
+    data=await pollen_service.fetch(lat=lat, lon=lon),  # type: ignore
   )

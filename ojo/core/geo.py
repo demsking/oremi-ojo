@@ -69,6 +69,21 @@ def _get_nominatim_http_client() -> httpx.AsyncClient:
 
 
 class Geocode:
+  @staticmethod
+  async def _get(path: str, *, params: dict, language_result: str) -> httpx.Response:
+    headers = {
+      'Accept-Language': language_result,
+    }
+
+    try:
+      return await _get_nominatim_http_client().get(url=path, params=params, headers=headers)
+    except RuntimeError as exc:
+      if 'Event loop is closed' not in str(exc):
+        raise
+
+      _get_nominatim_http_client.cache_clear()
+      return await _get_nominatim_http_client().get(url=path, params=params, headers=headers)
+
   @classmethod
   async def search(
     cls,
@@ -88,13 +103,10 @@ class Geocode:
     if isinstance(country_codes, list) and len(country_codes) > 0:
       params['countrycodes'] = ','.join(country_codes)
 
-    # See https://nominatim.org/release-docs/develop/api/Search
-    response = await _get_nominatim_http_client().get(
-      url='/search',
+    response = await cls._get(
+      '/search',
       params=params,
-      headers={
-        'Accept-Language': language_result,
-      },
+      language_result=language_result,
     )
 
     result = [Location(**item) for item in response.json()]
@@ -161,13 +173,10 @@ class Geocode:
       'addressdetails': 1 if addressdetails else 0,
     }
 
-    # See https://nominatim.org/release-docs/develop/api/Reverse
-    response = await _get_nominatim_http_client().get(
-      url='/reverse',
+    response = await cls._get(
+      '/reverse',
       params=params,
-      headers={
-        'Accept-Language': language_result,
-      },
+      language_result=language_result,
     )
 
     data = response.json()
