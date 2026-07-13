@@ -36,7 +36,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 
 COPY --chown=oremi:oremi DOCUMENTATION.md pyproject.toml LICENSE ./
 COPY --chown=oremi:oremi htdocs/ ./htdocs/
-COPY --chown=oremi:oremi weather/ ./ojo/
+COPY --chown=oremi:oremi ojo/ ./ojo/
 
 ENV PATH="/oremi/.venv/bin:$PATH"
 ENV PYTHONPATH="/oremi:/oremi/.venv/lib/python3.12/site-packages"
