@@ -128,16 +128,21 @@ bump:
 	git add pyproject.toml uv.lock
 	git commit -m "chore(release): bump version to $(VERSION)"
 
-alpha: check-clean
-	uv version --bump alpha
-	uv lock
-
 beta: check-clean
-	uv version --bump beta
-	uv lock
-
-rc: check-clean
-	uv version --bump rc
+	@set -eu; \
+	current="$$(uv version --short)"; \
+	case "$$current" in \
+		*b[0-9]*) \
+			base="$${current%b*}"; \
+			num="$${current##*b}"; \
+			next="$$base""b$$((num + 1))"; \
+			;; \
+		*) \
+			next="$$current""b1"; \
+			;; \
+	esac; \
+	echo "Bumping version: $$current -> $$next"; \
+	uv version "$$next"; \
 	uv lock
 
 patch: check-clean
