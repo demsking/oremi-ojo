@@ -108,13 +108,33 @@ class AgentClient(Generic[OutputModel]):
     if self.ollama_client is None:
       raise RuntimeError('Native Ollama client is not configured')
 
-    logger.info(f'Pulling model {self.settings.resolve_ollama_model_name()}...')
-    await self.ollama_client.pull(self.settings.resolve_ollama_model_name(), stream=False)
+    model_name = self.settings.resolve_ollama_model_name()
 
-    logger.info(f'Loading model {self.settings.resolve_ollama_model_name()}...')
-    await self.ollama_client.generate(model=self.settings.resolve_ollama_model_name(), keep_alive=-1)
+    try:
+      logger.info(f'Pulling model {model_name}...')
+      await self.ollama_client.pull(model_name, stream=False)
 
-    logger.info(f'Ollama model ready: {self.settings.resolve_ollama_model_name()}')
+      logger.info(f'Loading model {model_name}...')
+      await self.ollama_client.generate(model=model_name, keep_alive=-1, stream=False)
+    except httpx.ReadTimeout as error:
+      self._log_model_load_timeout(model_name, error)
+      return
+    except ResponseError as error:
+      if error.status_code != 499:
+        raise
+
+      self._log_model_load_timeout(model_name, error)
+      return
+
+    logger.info(f'Ollama model ready: {model_name}')
+
+  @staticmethod
+  def _log_model_load_timeout(model_name: str, error: Exception) -> None:
+    logger.warning(
+      'Ollama model load timed out for %s; continuing startup and the model may finish loading in the background: %s',
+      model_name,
+      error,
+    )
 
   @staticmethod
   def build_model(settings: Settings, model_settings: ModelSettings, client: httpx.AsyncClient) -> str:
