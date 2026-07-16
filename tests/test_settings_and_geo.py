@@ -5,7 +5,7 @@ from ojo.providers.OpenMeteoProvider import OpenMeteoProvider
 from ojo.core.settings import Settings
 from ojo.core.settings import get_settings
 from ojo.services.air_quality_service import AirQualityService
-from ojo.services.forcast_service import ForecastService
+from ojo.services.forecast_service import ForecastService
 from ojo.services.pollen_service import PollenService
 
 

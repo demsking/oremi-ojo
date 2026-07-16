@@ -2,9 +2,8 @@
 air quality information, pollen levels, and geocoding data. It exposes a
 comprehensive set of REST API endpoints designed for reliable integration into
 applications that require environmental and location intelligence. In addition
-to its REST interface, Oremi Ojọ includes an MCP interface for structured
-interactions and an agent endpoint that enables natural language queries over
-its data.
+to its REST interface, Oremi Ojọ includes a Model Context Protocol (MCP)
+interface that allows LLMs and agents to query its data using structured tools.
 
 The name **"Ojọ"** comes from the Yoruba language and means **"weather"**. It
 reflects the service's purpose of delivering current conditions, forecasts, and
@@ -19,28 +18,14 @@ Project repository: https://gitlab.com/demsking/oremi-ojo
 
 ## Features
 
-- **Weather Forecasts**: Retrieve detailed weather information, including
-  temperature, humidity, wind speed, wind direction, sunrise, and sunset times.
-- **Air Quality Data**: Access air quality metrics such as AQI, PM2.5, PM10,
-  NO₂, and O₃ levels for specific locations.
-- **Pollen Data**: Get information about pollen levels and types (e.g., grass,
-  birch, olive) to help manage allergies and plan outdoor activities.
-- **Geocoding**: Perform forward and reverse geocoding to find locations by
-  name, address, or coordinates.
-- **Generative Responses**: Use natural language queries to retrieve weather,
-  air quality, or pollen data for specific locations through `/agent/message`.
-- **Alert Routing**: Send an alert-focused request to `/agent/message` with
-  route metadata in the request context to switch to the alert generator.
-- **Multilingual Output**: Messages are generated directly in the
-  detected/requested language.
-- **Multi-Service & Multi-Location Queries**: One query can combine weather,
-  air quality, and pollen requests across multiple locations.
-- **Structured Pollen Payload**: Pollen responses expose `units`,
-  `dominant_pollen`, and `details` by pollen type with `level` and `severity`.
-- **Caching**: Supports caching of data to improve performance and reduce
-  redundant API calls.
-- **Dockerized**: Easily deployable using the [`demsking/oremi-ojo`](https://hub.docker.com/r/demsking/oremi-ojo)
-  Docker image.
+- **Weather Forecasts**: Retrieve detailed weather information, including current conditions, hourly forecasts, daily forecasts, sunrise/sunset times, and weather alerts.
+- **Air Quality Data**: Access air quality metrics (AQI) and levels for specific locations.
+- **Pollen Data**: Get information about pollen levels and types (e.g., grass, birch, olive) to help manage allergies and plan outdoor activities.
+- **Geocoding**: Perform forward and reverse geocoding to find locations by name, address, or coordinates (supporting multilingual display names via the `Accept-Language` header).
+- **Model Context Protocol (MCP)**: Exposes a rich set of strongly-typed tools to LLMs/agents over a Streamable HTTP transport, allowing natural language interfaces to query environmental data.
+- **Structured Pollen Payload**: Pollen responses expose `units`, `dominant_pollen`, and `details` by pollen type with `level` and `severity`.
+- **Caching**: Supports caching of data to improve performance and reduce redundant API calls.
+- **Dockerized**: Easily deployable using the [`demsking/oremi-ojo`](https://hub.docker.com/r/demsking/oremi-ojo) Docker image.
 
 ## Deployment
 
@@ -97,10 +82,10 @@ command-line options.
 
 The [`demsking/oremi-ojo`](https://hub.docker.com/r/demsking/oremi-ojo)
 Docker image is officially available on Docker Hub, supporting both
-`linux/amd64` and `linux/arm64` platforms. The image exposes port `1777`, which
+`linux/amd64` and `linux/arm64` platforms. The image exposes port `5040`, which
 serves the REST API and the interactive documentation.
 
-The interactive documentation can be accessed at `http://localhost:1777/docs/`
+The interactive documentation can be accessed at `http://localhost:5040/docs/`
 and allows testing available endpoints directly from the browser.
 
 ### Volumes
@@ -122,7 +107,7 @@ to run Oremi Ojọ:
 docker run -d \
   --name oremi-ojo \
   --env-file <path_to_env_file> \
-  -p 1777:1777 \
+  -p 5040:5040 \
   demsking/oremi-ojo
 ```
 
@@ -136,21 +121,10 @@ Create a `compose.yaml` file:
 
 ```yaml
 services:
-  agent:
+  ojo:
     image: demsking/oremi-ojo
-    depends_on:
-      - ollama
-    environment:
-      OREMI_OJO_OLLAMA_BASE_URL: http://ollama:11434
-
-  ollama:
-    image: ollama/ollama
-    restart: always
-    runtime: nvidia
-    volumes:
-      - ~/.ollama:/root/.ollama
-    environment:
-      CUDA_VISIBLE_DEVICES: 0
+    ports:
+      - "5040:5040"
 ```
 
 Start the services with:
@@ -162,7 +136,7 @@ docker compose up -d
 Once started, open the interactive documentation at:
 
 ```txt
-http://localhost:31777/docs/
+http://localhost:5040/docs/
 ```
 
 ## Configuration
@@ -174,7 +148,7 @@ of these variables, grouped by their purpose.
 ### Server Configuration
 
 - **OREMI_OJO_SERVER_HOST**: The host address on which the application will listen. Default is `"127.0.0.1"`.
-- **OREMI_OJO_SERVER_PORT**: The port number on which the application will listen. Default is `1777`.
+- **OREMI_OJO_SERVER_PORT**: The port number on which the application will listen. Default is `5040`.
 - **OREMI_OJO_API_PREFIX**: Base path for the API and docs routes. Default is `"/"`.
 
 ### HTTP Configuration
@@ -195,89 +169,88 @@ OREMI_OJO_HTTP_USER_AGENT=oremi-ojo/3.0.0 (ops@example.com)
 OREMI_OJO_HTTP_CACHE_TTL_SECONDS=1800.0
 ```
 
-### LLM Configuration
-
-- **OREMI_OJO_LLM_MODEL**: Model name to use for the agent. If it starts with `ollama:`, the prefix is stripped before creating the Ollama-backed model. Default is `"ollama:qwen3.5:2b"`.
-- **OREMI_OJO_LLM_REQUEST_TIMEOUT**: Timeout in seconds for LLM requests. Default is `15`.
-- **OREMI_OJO_LLM_TEMPERATURE**: Sampling temperature used by the agent. Default is `0.3`.
-- **OREMI_OJO_LLM_MAX_RESPONSE_TOKENS**: Maximum number of generated tokens. Default is `500`.
-
-Example:
-
-```env
-OREMI_OJO_LLM_MODEL=ollama:qwen3.5:2b
-OREMI_OJO_LLM_REQUEST_TIMEOUT=15
-OREMI_OJO_LLM_TEMPERATURE=0.3
-OREMI_OJO_LLM_MAX_RESPONSE_TOKENS=500
-```
-
-### LLM Cache Configuration
-
-These variables control the bounded in-memory cache used for repeated LLM work
-and idempotent agent component calls. The cache is process-local and is not
-persisted across restarts.
-
-- **OREMI_OJO_LLM_CACHE_ENABLED**: Enables the bounded internal LLM cache. Default is `true`.
-- **OREMI_OJO_LLM_CACHE_MAX_ENTRIES**: Maximum number of internal LLM cache entries kept in memory. Set to `0` to disable caching. Default is `512`.
-- **OREMI_OJO_LLM_CACHE_TTL_SECONDS**: TTL in seconds for cacheable internal LLM calls. Default is `300.0`.
-
-Examples:
-
-```env
-# Keep LLM cache enabled, but shorten reuse to one minute.
-OREMI_OJO_LLM_CACHE_ENABLED=true
-OREMI_OJO_LLM_CACHE_MAX_ENTRIES=512
-OREMI_OJO_LLM_CACHE_TTL_SECONDS=60.0
-```
-
-```env
-# Disable LLM cache completely.
-OREMI_OJO_LLM_CACHE_ENABLED=false
-OREMI_OJO_LLM_CACHE_MAX_ENTRIES=0
-OREMI_OJO_LLM_CACHE_TTL_SECONDS=0.0
-```
-
-### Ollama Configuration
-
-- **OREMI_OJO_OLLAMA_BASE_URL**: Base URL of the Ollama API. Required when using an `ollama:` model.
-
-Example:
-
-```env
-OREMI_OJO_LLM_MODEL=ollama:qwen3.5:2b
-OREMI_OJO_OLLAMA_BASE_URL=http://localhost:11434
-```
-
-### API and Logging Configuration
+### Logging Configuration
 
 - **OREMI_OJO_LOG_FILE**: Path to the log file for storing application logs. Empty defaults to console.
 - **OREMI_OJO_LOG_LEVEL**: Controls the verbosity of logs. Options: `'DEBUG'`, `'INFO'`, `'WARNING'`, `'ERROR'`, `'CRITICAL'`. Default is `'INFO'`.
 
 ## MCP Integration
 
-Oremi Ojọ exposes a Model Context Protocol server.
+Oremi Ojọ implements the Model Context Protocol (MCP) using a strongly-typed
+server. It exposes its core functionality as a set of tools that LLM agents can
+call directly.
 
-The MCP HTTP transport is mounted at:
+The MCP server uses the **Streamable HTTP transport** protocol and is mounted at:
 
-- `GET /mcp`
-- `POST /mcp`
-- `DELETE /mcp`
+```txt
+/mcp
+```
 
-The MCP tool catalog is generated from the Oremi Ojọ API routes that
-belong to these tags:
+For example, when running locally on the default port, the MCP endpoint is:
 
-- `Forecast Endpoints`
-- `Geocode Endpoints`
+```txt
+http://localhost:5040/mcp
+```
 
-The following tags are intentionally excluded from MCP tools:
+### Available MCP Tools
 
-- `Agent Endpoints`
-- `Server Endpoints`
+Below is the list of strongly-typed tools exposed by the MCP server:
 
-The MCP server is configured in HTTP mode and reuses the Oremi Ojọ
-app's OpenAPI schema, so tool descriptions stay in sync with the public API.
-Response schemas are described in full for better client generation and
-assistant planning.
+#### Weather & Forecasts
+
+- **`get_current_weather`**: Retrieve current weather conditions for a specific location.
+  - _Arguments_:
+    - `lat` (float): Latitude of the location.
+    - `lon` (float): Longitude of the location.
+    - `timezone` (str, default: `"auto"`): Timezone identifier.
+    - `temperature_unit` (str, default: `"celsius"`): `"celsius"` or `"fahrenheit"`.
+- **`get_hourly_forecast`**: Retrieve hourly weather forecast starting from the current hour.
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
+    - `timezone` (str, default: `"auto"`): Timezone identifier.
+    - `temperature_unit` (str, default: `"celsius"`): `"celsius"` or `"fahrenheit"`.
+    - `hours` (int, default: `24`): Number of hours to forecast.
+- **`get_daily_forecast`**: Retrieve daily weather forecast for the next few days.
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
+    - `timezone` (str, default: `"auto"`): Timezone identifier.
+    - `temperature_unit` (str, default: `"celsius"`): `"celsius"` or `"fahrenheit"`.
+    - `days` (int, default: `7`): Number of days to forecast.
+- **`get_weather_alerts`**: Retrieve severe weather alerts or warnings (extreme temperatures, high winds, heavy rain, high UV).
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
+    - `timezone` (str, default: `"auto"`): Timezone identifier.
+- **`get_sun_times`**: Retrieve sunrise and sunset times over the next few days.
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
+    - `timezone` (str, default: `"auto"`): Timezone identifier.
+    - `days` (int, default: `7`): Number of days.
+
+#### Environmental Data
+
+- **`get_air_quality`**: Retrieve current air quality data (AQI and pollutant levels) using EAQI or USAQI standards.
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
+- **`get_pollen`**: Retrieve current pollen presence and concentration levels (e.g., grass, birch, olive) along with SILAM severity levels.
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
+
+#### Geocoding
+
+- **`search_locations`**: Look up location coordinates and details for a query string (forward geocoding).
+  - _Arguments_:
+    - `query` (str): Search query (city, address, or landmark).
+    - `limit` (int, default: `10`): Maximum number of results to return.
+- **`reverse_geocode`**: Retrieve address and place name details by latitude and longitude coordinates.
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
 
 ## Development
 

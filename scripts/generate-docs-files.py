@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 from fastapi.testclient import TestClient
-from weather import app
 
+from ojo import app
 from ojo.core.package import STATIC_DIR
 
 
@@ -33,7 +33,7 @@ def generate_openapi():
 
 def generate_static_doc():
   response = client.get('/docs')
-  content = response.content.decode('utf-8').replace('../openapi.json', './openapi.json')
+  content = response.content.decode('utf-8').replace('\\', '\\\\').replace('`', '\\`')
 
   HTDOCS_INDEX_FILE.write_text(content)
 

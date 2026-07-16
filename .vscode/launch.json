@@ -14,12 +14,11 @@
         "--host",
         "0.0.0.0",
         "--port",
-        "1777"
+        "5040"
       ],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env.example",
       "env": {
-        "OREMI_OJO_OLLAMA_BASE_URL": "http://localhost:11436",
         "OREMI_OJO_LOG_LEVEL": "DEBUG"
       },
       "console": "integratedTerminal",

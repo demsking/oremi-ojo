@@ -25,8 +25,8 @@ from ..models.air_quality import USAQIData
 from ..models.forecast import ForecastData
 from ..models.pollen import PollenData
 from ..services.air_quality_service import AirQualityService
-from ..services.forcast_service import ForecastService
-from ..services.forcast_service import TemperatureUnit
+from ..services.forecast_service import ForecastService
+from ..services.forecast_service import TemperatureUnit
 from ..services.pollen_service import PollenService
 
 

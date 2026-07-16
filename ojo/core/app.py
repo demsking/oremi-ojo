@@ -20,23 +20,22 @@ import httpx
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
-from fastapi_mcp import FastApiMCP
+from mcp.server.fastmcp import FastMCP
 
-from ..api import agent
 from ..api import docs
 from ..api import forecast
 from ..api import geocode
 from ..api import health
-from ..core.controller import Controller
 from ..core.geo import NotFoundLocationException
-from ..llm.agent import AgentClient
+from ..mcp.air_quality_tools import register_air_quality_mcp_tools
+from ..mcp.forecast_tools import register_forecast_mcp_tools
+from ..mcp.geocode_tools import register_geocode_mcp_tools
+from ..mcp.pollen_tools import register_pollen_mcp_tools
 from ..providers.OpenMeteoProvider import OpenMeteoProvider
 from ..services.air_quality_service import AirQualityService
-from ..services.forcast_service import ForecastService
+from ..services.forecast_service import ForecastService
 from ..services.pollen_service import PollenService
-from ..utils.cache import SmartCache
 from ..utils.logger import configure_logging
-from ..utils.url import safe_url
 from .package import APP_DESCRIPTION
 from .package import APP_NAME
 from .package import APP_VERSION
@@ -46,18 +45,11 @@ from .settings import Settings
 logger = logging.getLogger(__name__)
 
 
-def configure_app_state(app: FastAPI, settings: Settings, client: httpx.AsyncClient) -> None:
-  smart_cache = SmartCache(enabled=settings.llm_cache_enabled, max_entries=settings.llm_cache_max_entries)
-  assistant = AgentClient(settings, client, smart_cache)
-  controller = Controller(assistant)
-  openmeteo = OpenMeteoProvider(settings)
-
-  app.state.client = client
-  app.state.settings = settings
-  app.state.controller = controller
-  app.state.forecast_service = ForecastService(openmeteo)
-  app.state.air_quality_service = AirQualityService(openmeteo)
-  app.state.pollen_service = PollenService(openmeteo)
+def log_startup_settings(settings: Settings) -> None:
+  """Log every configured application setting without exposing secrets."""
+  for name in settings.__class__.model_fields:
+    value = getattr(settings, name)
+    logger.info('Setting %s: %s', name, value)
 
 
 def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None) -> FastAPI:
@@ -69,55 +61,27 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
     configure_logging(settings.log_level, settings.log_file)
 
     logger.info(f'{APP_NAME} v{APP_VERSION}')
-    logger.info(f'Server: http://{settings.server_host}:{settings.server_port}')
-    logger.info(f'API Docs: http://{settings.server_host}:{settings.server_port}/docs')
-
-    logger.info(
-      'App settings [server]: host=%s port=%s api_prefix=%s', settings.server_host, settings.server_port, settings.api_prefix
-    )
-    logger.info(
-      'App settings [ollama]: model=%s base_url=%s native=%s',
-      settings.llm_model,
-      safe_url(settings.ollama_base_url_string if settings.ollama_base_url is not None else None),
-      settings.should_use_native_ollama,
-    )
-    logger.info(
-      'App settings [generation]: request_timeout=%s temperature=%s max_response_tokens=%s',
-      settings.llm_request_timeout,
-      settings.llm_temperature,
-      settings.llm_max_response_tokens,
-    )
-    logger.info('App settings [logging]: level=%s destination=%s', settings.log_level, settings.log_file or 'stderr')
-    logger.info(
-      'App settings [cache]: enabled=%s llm_ttl_seconds=%s http_ttl_seconds=%s',
-      settings.llm_cache_enabled,
-      settings.llm_cache_ttl_seconds,
-      settings.http_cache_ttl_seconds,
-    )
+    log_startup_settings(settings)
 
     client = app.state.client
 
-    try:
-      if settings.should_use_native_ollama:
-        if settings.ollama_base_url is None:
-          logger.warning('OREMI_OJO_OLLAMA_BASE_URL is not configured; LLM-backed endpoints will be unavailable')
-        else:
-          await app.state.controller.assistant.load_model()
+    logger.info(f'Oremi Ojọ ready: duration_ms={(perf_counter() - startup_started) * 1000:.1f}')
 
-      logger.info(f'Oremi Ojọ ready: duration_ms={(perf_counter() - startup_started) * 1000:.1f}')
-      ready = True
+    ready = True
 
+    _ = mcp.streamable_http_app()
+    async with mcp.session_manager.run():
       yield
-    finally:
-      shutdown_started = perf_counter()
 
-      if ready:
-        logger.info('Shutting down Oremi Ojọ')
-      else:
-        logger.warning('Oremi Ojọ startup aborted; cleaning up resources')
+    shutdown_started = perf_counter()
 
-      await client.aclose()
-      logger.info(f'Oremi Ojọ stopped: duration_ms={(perf_counter() - shutdown_started) * 1000:.1f}')
+    if ready:
+      logger.info('Shutting down Oremi Ojọ')
+    else:
+      logger.warning('Oremi Ojọ startup aborted; cleaning up resources')
+
+    await client.aclose()
+    logger.info(f'Oremi Ojọ stopped: duration_ms={(perf_counter() - shutdown_started) * 1000:.1f}')
 
   app = FastAPI(
     docs_url=None,
@@ -136,12 +100,31 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
     },
     openapi_tags=[
       forecast.API_TAG_METADATA,
-      agent.API_TAG_METADATA,
       geocode.API_TAG_METADATA,
       health.API_TAG_METADATA,
     ],
   )
-  configure_app_state(app, settings, http_client or httpx.AsyncClient(timeout=settings.http_request_timeout))
+
+  mcp = FastMCP(
+    name='Oremi Ojọ',
+    instructions=('???'),
+    stateless_http=True,
+    json_response=True,
+    streamable_http_path='/mcp',
+  )
+
+  openmeteo = OpenMeteoProvider(settings)
+  forecast_service = ForecastService(openmeteo)
+  air_quality_service = AirQualityService(openmeteo)
+  pollen_service = PollenService(openmeteo)
+
+  client = http_client or httpx.AsyncClient(timeout=settings.http_request_timeout)
+
+  app.state.client = client
+  app.state.settings = settings
+  app.state.forecast_service = forecast_service
+  app.state.air_quality_service = air_quality_service
+  app.state.pollen_service = pollen_service
 
   @app.exception_handler(Exception)
   async def unhandled_exception_handler(_, exc: Exception) -> JSONResponse:
@@ -170,24 +153,15 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
 
   app.include_router(forecast.router, prefix=api_prefix)
   app.include_router(geocode.router, prefix=api_prefix)
-  app.include_router(agent.router, prefix=api_prefix)
   app.include_router(health.router, prefix=prefix)
-  app.add_api_route(f'{api_prefix}/server', health.health, methods=['GET'], include_in_schema=False)
   app.include_router(docs.router, prefix=prefix)
 
-  mcp = FastApiMCP(
-    app,
-    name=APP_NAME,
-    description=APP_DESCRIPTION,
-    describe_all_responses=True,
-    describe_full_response_schema=True,
-    include_tags=[
-      forecast.API_TAG_METADATA['name'],
-      geocode.API_TAG_METADATA['name'],
-    ],
-  )
+  register_air_quality_mcp_tools(mcp, air_quality_service)
+  register_forecast_mcp_tools(mcp, forecast_service)
+  register_pollen_mcp_tools(mcp, pollen_service)
+  register_geocode_mcp_tools(mcp)
 
-  mcp.mount_http()
+  app.mount(settings.api_prefix, mcp.streamable_http_app())
   app.state.mcp = mcp
 
   return app

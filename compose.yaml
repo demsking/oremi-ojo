@@ -2,15 +2,12 @@
 name: dev-oremi-ojo
 
 services:
-  ollama:
-    tty: true
-    image: ollama/ollama
-    restart: always
-    runtime: nvidia
-    volumes:
-      - ~/.ollama:/root/.ollama
+  inspector:
+    image: ghcr.io/modelcontextprotocol/inspector:latest
     ports:
-      - 11436:11434
+      - "6274:6274"
+      - "6277:6277"
     environment:
-      CUDA_VISIBLE_DEVICES: 0
+      HOST: 0.0.0.0
+      MCP_AUTO_OPEN_ENABLED: "true"
 ...

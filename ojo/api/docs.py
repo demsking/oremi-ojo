@@ -23,7 +23,7 @@ from ..core.package import STATIC_DIR
 router = APIRouter(prefix='/docs')
 
 DOCUMENTATION_PATH = PROJECT_DIRECTORY / 'DOCUMENTATION.md'
-SERVICE_DESCRIPTION = DOCUMENTATION_PATH.read_text(encoding='utf-8')
+SERVICE_DESCRIPTION = DOCUMENTATION_PATH.read_text(encoding='utf-8').replace('\\', '\\\\').replace('`', '\\`')
 
 
 @router.get('/static/{file_path:path}', include_in_schema=False)
@@ -59,7 +59,7 @@ async def html_documentation():
           const isGitlabPage = location.origin.includes('gitlab.io');
 
           openapi.info.title = 'Oremi Ojọ Documentation';
-          openapi.info.description = "{SERVICE_DESCRIPTION.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')}";
+          openapi.info.description = `{SERVICE_DESCRIPTION}`;
 
           if (isGitlabPage) {{
             openapi.servers = [];

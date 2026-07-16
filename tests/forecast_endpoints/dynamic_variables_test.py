@@ -17,9 +17,8 @@ import pytest
 
 import numpy as np
 
-from ojo.core.controller import Controller
 from ojo.services.air_quality_service import AirQualityService
-from ojo.services.forcast_service import ForecastService
+from ojo.services.forecast_service import ForecastService
 from ojo.services.pollen_service import PollenService
 
 
@@ -136,25 +135,20 @@ class FakeOpenMeteoCurrentClient:
 
 
 @pytest.mark.asyncio
-async def test_fetch_daily_formats_sun_times_as_local_clock_values():
+async def test_fetch_formats_sun_times_as_local_clock_values():
   client = FakeOpenMeteoClient()
   provider = ForecastService(DummyProvider(client))  # type: ignore[arg-type]
-  now = datetime.datetime(2026, 7, 10)
-  dateinfo = Controller.DateInfo(period='daily', start=now, end=now, timezone='Europe/Paris')
 
-  res = await provider.fetch_daily(
+  res = await provider.fetch(
     lon=2.3483915,
     lat=48.8534951,
-    dateinfo=dateinfo,
+    timezone='Europe/Paris',
     temperature_unit='celsius',
-    daily_variables=['sunrise', 'sunset', 'weather_code'],
+    daily_variables=['sunrise', 'sunset'],
   )
 
   assert res.sunrise == '01:00:00'
   assert res.sunset == '02:00:00'
-  assert res.weather_code == 23
-  assert client.params['start_date'] == '2026-07-10'
-  assert client.params['end_date'] == '2026-07-10'
 
 
 @pytest.mark.asyncio
@@ -182,23 +176,6 @@ async def test_forecast_service_dynamic_variables():
   assert res.sunrise is not None
   # wind_speed was not requested so it shouldn't be present
   assert res.wind_speed is None
-
-  # Test daily fetch with specific variables (apparent_temperature_max, weather_code)
-  now = datetime.datetime.now()
-  dateinfo = Controller.DateInfo(period='daily', start=now, end=now, timezone='Europe/Paris')
-  res_daily = await provider.fetch_daily(
-    lon=2.3483915,
-    lat=48.8534951,
-    dateinfo=dateinfo,
-    temperature_unit='celsius',
-    daily_variables=['apparent_temperature_max', 'weather_code'],
-  )
-
-  assert res_daily.weather_code is not None
-  assert hasattr(res_daily, 'apparent_temperature_max')
-  assert getattr(res_daily, 'apparent_temperature_max') is not None
-  # rain_sum was not requested so it shouldn't be present
-  assert res_daily.rain_sum is None
 
 
 @pytest.mark.asyncio

@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from functools import cached_property
 from functools import lru_cache
 from typing import Literal
 
 from pydantic import Field
 from pydantic import field_validator
-from pydantic import HttpUrl
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
@@ -45,63 +43,13 @@ class Settings(BaseSettings):
   )
 
   server_port: int = Field(
-    default=1777,
+    default=5040,
     ge=1,
     le=65535,
     description='Port number to bind the server to. Must be between 1 and 65535.',
   )
 
   api_prefix: str = Field(default='/', description='API prefix for all endpoints.')
-
-  llm_model: str = Field(
-    default='ollama:qwen3.5:2b',
-    description='Fully qualified Pydantic-AI model identifier.',
-  )
-
-  llm_request_timeout: int = Field(
-    default=15,
-    ge=1,
-    le=300,
-    description='Request timeout in seconds for LLM calls.',
-  )
-
-  llm_temperature: float = Field(
-    default=0.3,
-    ge=0.0,
-    le=2.0,
-    description='Sampling temperature used by the configured LLM backend.',
-  )
-
-  llm_max_response_tokens: int = Field(
-    default=500,
-    gt=10,
-    le=4096,
-    description='Maximum number of tokens to generate in LLM responses. Default: 500.',
-  )
-
-  llm_cache_enabled: bool = Field(
-    default=True,
-    description='Enable the bounded internal cache for repeated LLM and idempotent component calls.',
-  )
-
-  llm_cache_max_entries: int = Field(
-    default=512,
-    ge=0,
-    le=10000,
-    description='Maximum number of internal LLM cache entries kept in memory. Set to 0 to disable caching.',
-  )
-
-  llm_cache_ttl_seconds: float = Field(
-    default=300.0,
-    ge=0.0,
-    le=3600.0,
-    description='TTL in seconds for cacheable internal LLM calls.',
-  )
-
-  ollama_base_url: HttpUrl | None = Field(
-    default=None,
-    description='Ollama API base URL used when the agent runs on Ollama.',
-  )
 
   http_request_timeout: float = Field(
     default=30.0,
@@ -135,34 +83,6 @@ class Settings(BaseSettings):
       raise ValueError("OREMI_OJO_API_PREFIX must start with '/'")
 
     return value.rstrip('/') or '/'
-
-  @field_validator('ollama_base_url', mode='before')
-  @classmethod
-  def validate_ollama_base_url(cls, value):
-    """Remove trailing slashes from Ollama host URL."""
-    if isinstance(value, str):
-      value = value.rstrip('/')
-
-    return value
-
-  @cached_property
-  def should_use_native_ollama(self) -> bool:
-    """Return whether the active agent model uses the Ollama backend."""
-
-    return self.llm_model.startswith('ollama:')
-
-  @cached_property
-  def ollama_model_name(self) -> str:
-    """Return the Ollama model name without provider prefix."""
-    return self.llm_model.removeprefix('ollama:')  # pylint: disable=no-member
-
-  @cached_property
-  def ollama_base_url_string(self) -> str:
-    """Return the Ollama base URL for Pydantic AI."""
-    if self.ollama_base_url is None:
-      raise ValueError('OREMI_OJO_OLLAMA_BASE_URL is required when using an ollama: model')
-
-    return str(self.ollama_base_url).rstrip('/')
 
 
 @lru_cache
