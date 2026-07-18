@@ -66,6 +66,14 @@ repos:
         language: system
         files: Dockerfile
 
+      - id: tests
+        name: Run tests
+        description: Runs `make tests`.
+        entry: make tests
+        language: system
+        pass_filenames: false
+        always_run: true
+
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.15.20
     hooks:

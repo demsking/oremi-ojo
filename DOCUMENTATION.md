@@ -252,6 +252,43 @@ Below is the list of strongly-typed tools exposed by the MCP server:
     - `lat` (float): Latitude.
     - `lon` (float): Longitude.
 
+### Available MCP Resources
+
+The MCP server exposes weather and environmental data as dynamic resource templates that can be read by clients:
+
+- **`weather:///{lat}/{lon}/current`**: Retrieve current weather conditions (temperature, humidity, wind, etc.) as a JSON resource.
+  - _Template Parameters_:
+    - `lat` (str): Latitude of the location.
+    - `lon` (str): Longitude of the location.
+- **`weather:///{lat}/{lon}/alerts`**: Retrieve active severe weather alerts and warnings as a JSON resource.
+  - _Template Parameters_:
+    - `lat` (str): Latitude.
+    - `lon` (str): Longitude.
+- **`weather:///{lat}/{lon}/air-quality`**: Retrieve current air quality indexes (AQI) and pollutant levels as a JSON resource.
+  - _Template Parameters_:
+    - `lat` (str): Latitude.
+    - `lon` (str): Longitude.
+- **`weather:///{lat}/{lon}/pollen`**: Retrieve current pollen allergen presence and concentration levels as a JSON resource.
+  - _Template Parameters_:
+    - `lat` (str): Latitude.
+    - `lon` (str): Longitude.
+
+### Available MCP Prompts
+
+Prompts are predefined template messages for specific tasks, allowing agents to coordinate multi-step workflows:
+
+- **`weather_report`**: Guide the agent through finding coordinates, retrieving current weather/daily forecast/alerts, and presenting a comprehensive weather report.
+  - _Arguments_:
+    - `location` (str, required): The location name or address for which to get the weather report.
+    - `days` (int, default: `3`): The number of days to include in the forecast (max 7).
+- **`outdoor_planner`**: Guide the agent to check weather, daily forecast, air quality, and pollen levels to plan outdoor activities.
+  - _Arguments_:
+    - `location` (str, required): The location name or address to plan the outdoor activity for.
+    - `activity` (str, default: `"running"`): The activity name (e.g., running, hiking, biking, picnic, gardening).
+- **`severe_weather_check`**: Guide the agent to check and summarize active severe weather warnings and alerts.
+  - _Arguments_:
+    - `location` (str, required): The location name or address to check for severe weather warnings.
+
 ## Development
 
 See the [contribution guide](https://gitlab.com/demsking/oremi-ojo/-/blob/main/CONTRIBUTING.md)
