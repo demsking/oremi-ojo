@@ -31,6 +31,8 @@ from ..mcp.air_quality_tools import register_air_quality_mcp_tools
 from ..mcp.forecast_tools import register_forecast_mcp_tools
 from ..mcp.geocode_tools import register_geocode_mcp_tools
 from ..mcp.pollen_tools import register_pollen_mcp_tools
+from ..mcp.prompts import register_mcp_prompts
+from ..mcp.resources import register_mcp_resources
 from ..providers.OpenMeteoProvider import OpenMeteoProvider
 from ..services.air_quality_service import AirQualityService
 from ..services.forecast_service import ForecastService
@@ -70,6 +72,8 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
     ready = True
 
     _ = mcp.streamable_http_app()
+    if mcp._session_manager is not None:  # pylint: disable=protected-access
+      mcp._session_manager._has_started = False  # pylint: disable=protected-access
     async with mcp.session_manager.run():
       yield
 
@@ -122,6 +126,7 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
 
   app.state.client = client
   app.state.settings = settings
+  app.state.mcp = mcp
   app.state.forecast_service = forecast_service
   app.state.air_quality_service = air_quality_service
   app.state.pollen_service = pollen_service
@@ -160,8 +165,14 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
   register_forecast_mcp_tools(mcp, forecast_service)
   register_pollen_mcp_tools(mcp, pollen_service)
   register_geocode_mcp_tools(mcp)
+  register_mcp_prompts(mcp)
+  register_mcp_resources(
+    mcp=mcp,
+    forecast_service=forecast_service,
+    air_quality_service=air_quality_service,
+    pollen_service=pollen_service,
+  )
 
   app.mount(settings.api_prefix, mcp.streamable_http_app())
-  app.state.mcp = mcp
 
   return app

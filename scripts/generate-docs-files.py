@@ -33,7 +33,7 @@ def generate_openapi():
 
 def generate_static_doc():
   response = client.get('/docs')
-  content = response.content.decode('utf-8').replace('\\', '\\\\').replace('`', '\\`')
+  content = response.content.decode('utf-8').replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$')
 
   HTDOCS_INDEX_FILE.write_text(content)
 
