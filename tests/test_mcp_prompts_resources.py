@@ -13,8 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 import json
+
 import pytest
 from fastapi.testclient import TestClient
+
 from ojo import app
 
 
@@ -34,9 +36,14 @@ def test_mcp_prompts_resources_endpoints_active():
     assert 'result' in data
     prompts = data['result']['prompts']
     prompt_names = [p['name'] for p in prompts]
-    assert 'weather_report' in prompt_names
-    assert 'outdoor_planner' in prompt_names
-    assert 'severe_weather_check' in prompt_names
+    assert 'current_weather' in prompt_names
+    assert 'today_weather' in prompt_names
+    assert 'weather_alerts' in prompt_names
+    assert 'weather_data_source' in prompt_names
+    assert 'air_quality_data_source' in prompt_names
+    assert 'pollen_data_source' in prompt_names
+    assert 'geocoding_data_source' in prompt_names
+    assert 'data_sources_summary' in prompt_names
 
     # 2. Test resource templates list
     payload_resources = {
@@ -80,15 +87,27 @@ async def test_mcp_local_prompts():
   mcp = app.state.mcp
   prompts = await mcp.list_prompts()
   prompt_names = [p.name for p in prompts]
-  assert 'weather_report' in prompt_names
-  assert 'outdoor_planner' in prompt_names
-  assert 'severe_weather_check' in prompt_names
+  assert 'current_weather' in prompt_names
+  assert 'today_weather' in prompt_names
+  assert 'weather_alerts' in prompt_names
+  assert 'weather_data_source' in prompt_names
+  assert 'air_quality_data_source' in prompt_names
+  assert 'pollen_data_source' in prompt_names
+  assert 'geocoding_data_source' in prompt_names
+  assert 'data_sources_summary' in prompt_names
 
-  # Render prompt
-  prompt = await mcp.get_prompt('weather_report', arguments={'location': 'Paris', 'days': '3'})
+  # Render prompt with arguments
+  prompt = await mcp.get_prompt('current_weather', arguments={'location': 'Paris'})
   assert prompt is not None
   assert len(prompt.messages) > 0
   assert 'Paris' in prompt.messages[0].content.text
+
+  # Render prompt without arguments
+  prompt_no_args = await mcp.get_prompt('data_sources_summary')
+  assert prompt_no_args is not None
+  assert len(prompt_no_args.messages) > 0
+  assert 'Summary' in prompt_no_args.messages[0].content.text
+
 
 
 @pytest.mark.asyncio

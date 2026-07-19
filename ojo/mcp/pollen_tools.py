@@ -16,6 +16,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..models.pollen import PollenData
+from ..models.pollen import PollenForecastData
 from ..services.pollen_service import PollenService
 
 
@@ -32,14 +33,40 @@ def register_pollen_mcp_tools(mcp: FastMCP, service: PollenService) -> None:
     at the given geographic coordinates.
     """
     try:
-      res = await service.fetch(lat=lat, lon=lon)
+      result = await service.fetch(lat=lat, lon=lon)
 
-      if res is None:
+      if result is None:
         raise ToolError('No pollen data found for the given coordinates.')
 
-      return res
+      return result
     except Exception as exception:
       if isinstance(exception, ToolError):
         raise
 
       raise ToolError(f'Error fetching pollen data: {exception}') from exception
+
+  @mcp.tool(name='get_pollen_forecast')
+  async def get_pollen_forecast(
+    lat: float,
+    lon: float,
+    timezone: str = 'auto',
+  ) -> PollenForecastData:
+    """Retrieve hourly pollen forecast for a specific location.
+
+    This tool provides forecast information on the presence and concentration levels
+    of various airborne pollens (like grass, birch, olive, ragweed, etc.)
+    at the given geographic coordinates.
+    Note: Data is only available in Europe during pollen season with 4 days forecast.
+    """
+    try:
+      result = await service.forecast(lat=lat, lon=lon, timezone=timezone)
+
+      if result is None:
+        raise ToolError('No pollen forecast data found for the given coordinates.')
+
+      return result
+    except Exception as exception:
+      if isinstance(exception, ToolError):
+        raise
+
+      raise ToolError(f'Error fetching pollen forecast data: {exception}') from exception

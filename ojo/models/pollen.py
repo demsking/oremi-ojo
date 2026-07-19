@@ -38,7 +38,7 @@ class PollenSeverity(StrEnum):
 
 
 class PollenDetail(BaseModel):
-  level: float = Field(..., description='Measured pollen concentration in grains/m³')
+  level: float | None = Field(..., description='Measured pollen concentration in grains/m³')
   severity: PollenSeverity = Field(..., description='SILAM severity classification for this pollen type')
 
 
@@ -50,3 +50,14 @@ class PollenData(BaseModel):
     description='Pollen type with the highest current concentration.',
   )
   details: dict[PollenName, PollenDetail] = Field(default_factory=dict, description='Current pollen details by type.')
+
+
+class PollenForecastItem(BaseModel):
+  time: str = Field(..., description='ISO8601 formatted time string')
+  dominant_pollen: PollenName | None = Field(default=None, description='Dominant pollen for this hour')
+  details: dict[PollenName, PollenDetail] = Field(default_factory=dict, description='Pollen details by type for this hour')
+
+
+class PollenForecastData(BaseModel):
+  units: str = Field(..., description='Units of measurement for pollen concentration')
+  forecast: list[PollenForecastItem] = Field(..., description='Hourly pollen forecast items')

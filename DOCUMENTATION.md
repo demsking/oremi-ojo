@@ -240,6 +240,11 @@ Below is the list of strongly-typed tools exposed by the MCP server:
   - _Arguments_:
     - `lat` (float): Latitude.
     - `lon` (float): Longitude.
+- **`get_pollen_forecast`**: Retrieve hourly pollen forecast for a specific location. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `lat` (float): Latitude.
+    - `lon` (float): Longitude.
+    - `timezone` (str, default: `"auto"`): Timezone identifier.
 
 #### Geocoding
 
@@ -277,17 +282,77 @@ The MCP server exposes weather and environmental data as dynamic resource templa
 
 Prompts are predefined template messages for specific tasks, allowing agents to coordinate multi-step workflows:
 
-- **`weather_report`**: Guide the agent through finding coordinates, retrieving current weather/daily forecast/alerts, and presenting a comprehensive weather report.
+- **`current_weather`**: Assist in getting the current weather conditions for a specific location.
   - _Arguments_:
-    - `location` (str, required): The location name or address for which to get the weather report.
-    - `days` (int, default: `3`): The number of days to include in the forecast (max 7).
-- **`outdoor_planner`**: Guide the agent to check weather, daily forecast, air quality, and pollen levels to plan outdoor activities.
+    - `location` (str): The location name or address.
+- **`today_weather`**: Assist in getting today's weather forecast.
   - _Arguments_:
-    - `location` (str, required): The location name or address to plan the outdoor activity for.
-    - `activity` (str, default: `"running"`): The activity name (e.g., running, hiking, biking, picnic, gardening).
-- **`severe_weather_check`**: Guide the agent to check and summarize active severe weather warnings and alerts.
+    - `location` (str): The location name or address.
+- **`tonight_weather`**: Assist in getting tonight's weather forecast.
   - _Arguments_:
-    - `location` (str, required): The location name or address to check for severe weather warnings.
+    - `location` (str): The location name or address.
+- **`tomorrow_weather`**: Assist in getting tomorrow's weather forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`weekend_weather`**: Assist in getting the weekend weather forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`weekly_weather`**: Assist in getting a weekly weather forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`hourly_weather`**: Assist in getting an hourly weather forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`air_quality`**: Assist in getting the air quality (AQI) for a location.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`uv_index`**: Assist in getting the UV index forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`weather_alerts`**: Assist in checking for active weather alerts.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`sun_times`**: Assist in getting sunrise and sunset times.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`weather_summary`**: Assist in getting a comprehensive weather summary.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`plan_day`**: Assist in planning their day around the weather.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`outdoor_activity`**: Assist in determining if weather is suitable for outdoor activities.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`current_pollen_conditions`**: Assist in checking current pollen conditions. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`daily_pollen_forecast`**: Assist in getting the daily pollen forecast. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`pollen_outlook`**: Assist in getting a general pollen outlook. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`pollen_risk_assessment`**: Assist in assessing pollen allergy risks. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`pollen_health_advice`**: Assist in getting health advice related to current pollen levels. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`outdoor_activity_pollen_check`**: Assist in checking if outdoor activities are safe regarding pollen. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`pollen_alert_subscription`**: Assist in setting up pollen alerts. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+  - _Arguments_:
+    - `location` (str): The location name or address.
+- **`explain_pollen_type`**: Assist in understanding a specific pollen type.
+  - _Arguments_:
+    - `pollen_type` (str): The pollen type to explain, e.g., 'birch', 'grass'.
+- **`weather_data_source`**: Provide information about the data source used for weather forecasts and current conditions.
+- **`air_quality_data_source`**: Provide information about the data source used for air quality information.
+- **`pollen_data_source`**: Provide information about the data source used for pollen levels and forecasts.
+- **`geocoding_data_source`**: Provide information about the data source used for location geocoding and address lookups.
+- **`data_sources_summary`**: Provide a comprehensive summary of all external data sources powering Oremi Ojọ.
 
 ## Development
 
