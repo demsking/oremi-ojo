@@ -174,22 +174,16 @@ OREMI_OJO_HTTP_CACHE_TTL_SECONDS=1800.0
 - **OREMI_OJO_LOG_FILE**: Path to the log file for storing application logs. Empty defaults to console.
 - **OREMI_OJO_LOG_LEVEL**: Controls the verbosity of logs. Options: `'DEBUG'`, `'INFO'`, `'WARNING'`, `'ERROR'`, `'CRITICAL'`. Default is `'INFO'`.
 
-## MCP Integration
+## Model Context Protocol
 
 Oremi Ojọ implements the Model Context Protocol (MCP) using a strongly-typed
-server. It exposes its core functionality as a set of tools that LLM agents can
-call directly.
+server. It exposes its core functionality as a set of tools, resources and
+prompts that LLM agents can call directly.
 
 The MCP server uses the **Streamable HTTP transport** protocol and is mounted at:
 
 ```txt
 /mcp
-```
-
-For example, when running locally on the default port, the MCP endpoint is:
-
-```txt
-http://localhost:5040/mcp
 ```
 
 ### Available MCP Tools
