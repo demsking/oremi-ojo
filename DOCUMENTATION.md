@@ -147,7 +147,7 @@ of these variables, grouped by their purpose.
 
 ### Server Configuration
 
-- **OREMI_OJO_SERVER_HOST**: The host address on which the application will listen. Default is `"127.0.0.1"`.
+- **OREMI_OJO_SERVER_HOST**: The host address on which the application will listen. Default is `"0.0.0.0"`.
 - **OREMI_OJO_SERVER_PORT**: The port number on which the application will listen. Default is `5040`.
 - **OREMI_OJO_API_PREFIX**: Base path for the API and docs routes. Default is `"/"`.
 
