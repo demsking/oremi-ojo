@@ -13,9 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 import datetime
-import pytest
 
 import numpy as np
+import pytest
 
 from ojo.services.air_quality_service import AirQualityService
 from ojo.services.forecast_service import ForecastService
