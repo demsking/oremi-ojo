@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -1028,7 +1028,7 @@ wheels = [
 
 [[package]]
 name = "oremi-ojo"
-version = "3.0.0b17"
+version = "3.0.0b18"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
