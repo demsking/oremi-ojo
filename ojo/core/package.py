@@ -22,9 +22,9 @@ _pyproject_path = PROJECT_DIRECTORY / 'pyproject.toml'
 
 with _pyproject_path.open('rb') as file:
   package = tomllib.load(file)['project']
-  APP_NAME = package['name']
-  APP_DESCRIPTION = package['description']
-  APP_VERSION = package['version']
+  APP_NAME: str = package['name']
+  APP_DESCRIPTION: str = package['description']
+  APP_VERSION: str = package['version']
 
   del package
   del tomllib

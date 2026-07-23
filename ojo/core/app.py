@@ -13,11 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from time import perf_counter
 
 import httpx
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
 from mcp.server.fastmcp import FastMCP
@@ -56,7 +58,7 @@ def log_startup_settings(settings: Settings) -> None:
 
 def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None) -> FastAPI:
   @asynccontextmanager
-  async def lifespan(app: FastAPI):
+  async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     startup_started = perf_counter()
     ready = False
 
@@ -111,7 +113,12 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
 
   mcp = FastMCP(
     name='Oremi Ojọ',
-    instructions=('???'),
+    instructions=(
+      'Oremi Ojọ is a comprehensive climate and weather MCP server.\n'
+      'It provides tools, prompts, and resources for fetching detailed weather forecasts, '
+      'hourly and daily predictions, weather alerts, air quality index data, pollen levels, '
+      'sunrise/sunset times, and geocoding services (location search and reverse geocoding).'
+    ),
     stateless_http=True,
     json_response=True,
     streamable_http_path='/mcp',
@@ -132,25 +139,25 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
   app.state.pollen_service = pollen_service
 
   @app.exception_handler(Exception)
-  async def unhandled_exception_handler(_, exc: Exception) -> JSONResponse:
+  async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.exception('Unhandled application error')
     return JSONResponse(status_code=500, content={'detail': 'Internal server error', 'error': str(exc)})
 
   @app.exception_handler(httpx.ConnectTimeout)
-  async def handle_httpx_connect_timeout(_, exc: httpx.ConnectTimeout) -> JSONResponse:
+  async def handle_httpx_connect_timeout(request: Request, exc: httpx.ConnectTimeout) -> JSONResponse:
     return JSONResponse(status_code=500, content={'detail': str(exc) or 'Connection Timeout Error'})
 
   @app.exception_handler(httpx.ConnectError)
-  async def handle_httpx_connect_error(_, exc: httpx.ConnectError) -> JSONResponse:
+  async def handle_httpx_connect_error(request: Request, exc: httpx.ConnectError) -> JSONResponse:
     return JSONResponse(status_code=500, content={'detail': str(exc)})
 
   @app.exception_handler(NotFoundLocationException)
-  async def not_found_location_exception_handler(_, exc: NotFoundLocationException) -> JSONResponse:
+  async def not_found_location_exception_handler(request: Request, exc: NotFoundLocationException) -> JSONResponse:
     logger.error(exc)
     return JSONResponse(status_code=404, content={'detail': 'No location found'})
 
   @app.get('/', include_in_schema=False)
-  async def redirect_to_docs():
+  async def redirect_to_docs() -> HTMLResponse:
     return HTMLResponse(status_code=307, headers={'Location': docs.router.prefix})
 
   prefix = '' if settings.api_prefix == '/' else settings.api_prefix

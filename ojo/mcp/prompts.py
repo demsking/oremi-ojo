@@ -13,31 +13,36 @@
 # limitations under the License.
 # ==============================================================================
 from typing import Annotated
-from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import PromptMessage
+from mcp.types import TextContent
 from pydantic import Field
 
 
 def register_mcp_prompts(mcp: FastMCP) -> None:
-  def _build_prompt(request: str, steps: list[str]) -> list[dict[str, Any]]:
+  def _build_prompt(request: str, steps: list[str]) -> list[PromptMessage]:
     steps_text = '\\n'.join(f'{i + 1}. {step}' for i, step in enumerate(steps))
+
     return [
-      {
-        'role': 'user',
-        'content': (
-          f'The user wants: {request}\\n\\n'
-          'Please execute this request by following these steps:\\n'
-          f'{steps_text}\\n\\n'
-          'Always provide a clear, friendly, and natural language response.'
+      PromptMessage(
+        role='user',
+        content=TextContent(
+          type='text',
+          text=(
+            f'The user wants: {request}\\n\\n'
+            'Please execute this request by following these steps:\\n'
+            f'{steps_text}\\n\\n'
+            'Always provide a clear, friendly, and natural language response.'
+          ),
         ),
-      }
+      )
     ]
 
   @mcp.prompt()
   def current_weather(
     location: Annotated[str, Field(description="The location to get current weather for, e.g., 'Paris, France'.")],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting the current weather conditions for a specific location."""
     return _build_prompt(
       f'Current weather for {location}',
@@ -51,7 +56,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def today_weather(
     location: Annotated[str, Field(description="The location to get today's weather forecast for.")],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting today's weather forecast for a specific location."""
     return _build_prompt(
       f"Today's weather for {location}",
@@ -65,7 +70,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def tonight_weather(
     location: Annotated[str, Field(description="The location to get tonight's weather forecast for.")],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting tonight's weather forecast."""
     return _build_prompt(
       f"Tonight's weather for {location}",
@@ -79,7 +84,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def tomorrow_weather(
     location: Annotated[str, Field(description="The location to get tomorrow's weather forecast for.")],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting tomorrow's weather forecast."""
     return _build_prompt(
       f"Tomorrow's weather for {location}",
@@ -93,7 +98,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def weekend_weather(
     location: Annotated[str, Field(description='The location to get the weekend weather forecast for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting the weekend weather forecast."""
     return _build_prompt(
       f'Weekend weather for {location}',
@@ -107,7 +112,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def weekly_weather(
     location: Annotated[str, Field(description='The location to get a weekly weather forecast for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting a weekly weather forecast."""
     return _build_prompt(
       f'Weekly weather for {location}',
@@ -121,7 +126,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def hourly_weather(
     location: Annotated[str, Field(description='The location to get an hourly weather forecast for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting an hourly weather forecast."""
     return _build_prompt(
       f'Hourly weather for {location}',
@@ -135,7 +140,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def air_quality(
     location: Annotated[str, Field(description='The location to get the air quality (AQI) for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting the air quality (AQI) for a location."""
     return _build_prompt(
       f'Air quality for {location}',
@@ -149,7 +154,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def uv_index(
     location: Annotated[str, Field(description='The location to get the UV index forecast for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting the UV index forecast."""
     return _build_prompt(
       f'UV index for {location}',
@@ -163,7 +168,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def weather_alerts(
     location: Annotated[str, Field(description='The location to check for active weather alerts.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in checking for active weather alerts."""
     return _build_prompt(
       f'Weather alerts for {location}',
@@ -177,7 +182,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def sun_times(
     location: Annotated[str, Field(description='The location to get sunrise and sunset times for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting sunrise and sunset times."""
     return _build_prompt(
       f'Sunrise and sunset times for {location}',
@@ -191,7 +196,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def weather_summary(
     location: Annotated[str, Field(description='The location to get a comprehensive weather summary for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting a comprehensive weather summary."""
     return _build_prompt(
       f'Comprehensive weather summary for {location}',
@@ -205,7 +210,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def plan_day(
     location: Annotated[str, Field(description='The location to assist the user in planning their day.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in planning their day around the weather."""
     return _build_prompt(
       f'Day planning assistance for {location}',
@@ -219,7 +224,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def outdoor_activity(
     location: Annotated[str, Field(description='The location to determine if weather is suitable for outdoor activities.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in determining if weather is suitable for outdoor activities."""
     return _build_prompt(
       f'Outdoor activity check for {location}',
@@ -233,7 +238,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def current_pollen_conditions(
     location: Annotated[str, Field(description='The location to check current pollen conditions for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in checking current pollen conditions."""
     return _build_prompt(
       f'Current pollen conditions for {location}',
@@ -247,7 +252,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def daily_pollen_forecast(
     location: Annotated[str, Field(description='The location to get the daily pollen forecast for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting the daily pollen forecast."""
     return _build_prompt(
       f'Daily pollen forecast for {location}',
@@ -261,7 +266,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def pollen_outlook(
     location: Annotated[str, Field(description='The location to get a general pollen outlook for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting a general pollen outlook."""
     return _build_prompt(
       f'Pollen outlook for {location}',
@@ -275,7 +280,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def pollen_risk_assessment(
     location: Annotated[str, Field(description='The location to assess pollen allergy risks for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in assessing pollen allergy risks."""
     return _build_prompt(
       f'Pollen risk assessment for {location}',
@@ -289,7 +294,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def pollen_health_advice(
     location: Annotated[str, Field(description='The location to get health advice related to current pollen levels.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in getting health advice related to current pollen levels."""
     return _build_prompt(
       f'Pollen health advice for {location}',
@@ -303,7 +308,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def outdoor_activity_pollen_check(
     location: Annotated[str, Field(description='The location to check if outdoor activities are safe regarding pollen.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in checking if outdoor activities are safe regarding pollen."""
     return _build_prompt(
       f'Outdoor activity pollen check for {location}',
@@ -317,7 +322,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def pollen_alert_subscription(
     location: Annotated[str, Field(description='The location to set up pollen alerts for.')],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in setting up pollen alerts."""
     return _build_prompt(
       f'Pollen alert setup for {location}',
@@ -331,7 +336,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
   @mcp.prompt()
   def explain_pollen_type(
     pollen_type: Annotated[str, Field(description="The pollen type to explain, e.g., 'birch', 'grass'.")],
-  ) -> list[dict[str, Any]]:
+  ) -> list[PromptMessage]:
     """Assist the user in understanding a specific pollen type."""
     return _build_prompt(
       f'Explanation for pollen type: {pollen_type}',
@@ -342,7 +347,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt()
-  def weather_data_source() -> list[dict[str, Any]]:
+  def weather_data_source() -> list[PromptMessage]:
     """Provide information about the data source used for weather forecasts and current conditions."""
     return _build_prompt(
       'Information about the weather forecast data source',
@@ -355,7 +360,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt()
-  def air_quality_data_source() -> list[dict[str, Any]]:
+  def air_quality_data_source() -> list[PromptMessage]:
     """Provide information about the data source used for air quality information."""
     return _build_prompt(
       'Information about the air quality data source',
@@ -367,7 +372,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt()
-  def pollen_data_source() -> list[dict[str, Any]]:
+  def pollen_data_source() -> list[PromptMessage]:
     """Provide information about the data source used for pollen levels and forecasts."""
     return _build_prompt(
       'Information about the pollen data source',
@@ -379,7 +384,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt()
-  def geocoding_data_source() -> list[dict[str, Any]]:
+  def geocoding_data_source() -> list[PromptMessage]:
     """Provide information about the data source used for location geocoding and address lookups."""
     return _build_prompt(
       'Information about the geocoding data source',
@@ -390,7 +395,7 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt()
-  def data_sources_summary() -> list[dict[str, Any]]:
+  def data_sources_summary() -> list[PromptMessage]:
     """Provide a comprehensive summary of all external data sources powering Oremi Ojọ."""
     return _build_prompt(
       'Summary of all Oremi Ojọ data sources',

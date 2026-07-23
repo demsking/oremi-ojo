@@ -14,12 +14,13 @@
 # ==============================================================================
 import datetime  # use implicit import to enable datatime mocking
 import logging
+from typing import Any
 from typing import ClassVar
 from typing import Literal
 from zoneinfo import ZoneInfo
 from zoneinfo import ZoneInfoNotFoundError
 
-from openmeteo_sdk.Unit import Unit
+from openmeteo_sdk.Unit import Unit  # type: ignore[import-untyped]
 
 from ..models.forecast import CurrentWeatherData
 from ..models.forecast import DailyForecastItem
@@ -175,7 +176,7 @@ class ForecastService:
     return value.date().isoformat()
 
   @staticmethod
-  def _value_at(values, index: int):
+  def _value_at(values: Any, index: int) -> Any:
     if values is None or isinstance(values, int) or len(values) <= index:
       return None
 
@@ -194,16 +195,16 @@ class ForecastService:
     return int(now_utc.timestamp())
 
   @staticmethod
-  def _time_index(series, timestamp: int) -> int:
-    start = series.Time()
-    interval = series.Interval() or 3600
-    length = series.Variables(0).ValuesLength() if series and series.VariablesLength() else 0  # type: ignore
+  def _time_index(series: Any, timestamp: int) -> int:
+    start: int = series.Time()
+    interval: int = series.Interval() or 3600
+    length: int = series.Variables(0).ValuesLength() if series and series.VariablesLength() else 0
 
     if length <= 0:
       return 0
 
     index = round((timestamp - start) / interval)
-    return max(0, min(index, length - 1))
+    return int(max(0, min(index, length - 1)))
 
   async def _fetch_hourly(
     self,
@@ -214,7 +215,7 @@ class ForecastService:
     temperature_unit: TemperatureUnit,
     hourly_variables: list[str] | None = None,
     daily_variables: list[str] | None = None,
-  ):
+  ) -> tuple[dict[str, Any], dict[str, str], dict[str, Any], list[str]]:
     logger.info(f'Fetching forecast for geo ({lon}, {lat})')
 
     if hourly_variables is not None:
@@ -261,14 +262,14 @@ class ForecastService:
     hourly_units: dict[str, str] = {}
 
     for index, var_name in enumerate(hourly_vars):
-      variable = hourly.Variables(index) if hourly else None  # type: ignore
+      variable = hourly.Variables(index) if hourly else None
       hourly_data[var_name] = self._value_at(variable.ValuesAsNumpy(), hourly_index) if variable else None
       hourly_units[var_name] = self._unit_label(variable.Unit()) if variable else ''
 
     daily_data: dict[str, object] = {}
 
     for index, var_name in enumerate(daily_vars):
-      variable = daily.Variables(index) if daily else None  # type: ignore
+      variable = daily.Variables(index) if daily else None
 
       if not variable:
         daily_data[var_name] = None
@@ -391,7 +392,7 @@ class ForecastService:
     current_units = {}
 
     for index, var in enumerate(current_vars):
-      variable = current.Variables(index) if current else None  # type: ignore
+      variable = current.Variables(index) if current else None
       current_values[var] = variable.Value() if variable else 0
       current_units[var] = self._unit_label(variable.Unit()) if variable else ''
 
@@ -454,11 +455,11 @@ class ForecastService:
     hourly = response.Hourly()
     utc_offset_seconds = response.UtcOffsetSeconds()
 
-    hourly_data: dict[str, list] = {}
+    hourly_data: dict[str, list[float]] = {}
     hourly_units: dict[str, str] = {}
 
     for index, var in enumerate(hourly_vars):
-      variable = hourly.Variables(index) if hourly else None  # type: ignore
+      variable = hourly.Variables(index) if hourly else None
       if variable:
         hourly_data[var] = variable.ValuesAsNumpy().tolist()
         hourly_units[var] = self._unit_label(variable.Unit())
@@ -545,11 +546,11 @@ class ForecastService:
     daily = response.Daily()
     utc_offset_seconds = response.UtcOffsetSeconds()
 
-    daily_data: dict[str, list] = {}
+    daily_data: dict[str, Any] = {}
     daily_units: dict[str, str] = {}
 
     for index, var in enumerate(daily_vars):
-      variable = daily.Variables(index) if daily else None  # type: ignore
+      variable = daily.Variables(index) if daily else None
       if variable:
         if var in ('sunrise', 'sunset'):
           daily_data[var] = variable.ValuesInt64AsNumpy().tolist()
@@ -626,9 +627,9 @@ class ForecastService:
     response = responses[0]
     daily = response.Daily()
 
-    daily_data: dict[str, list] = {}
+    daily_data: dict[str, list[float]] = {}
     for index, var in enumerate(daily_vars):
-      variable = daily.Variables(index) if daily else None  # type: ignore
+      variable = daily.Variables(index) if daily else None
       daily_data[var] = variable.ValuesAsNumpy().tolist() if variable else []
 
     start_time = daily.Time() if daily else 0
@@ -729,9 +730,9 @@ class ForecastService:
     daily = response.Daily()
     utc_offset_seconds = response.UtcOffsetSeconds()
 
-    daily_data: dict[str, list] = {}
+    daily_data: dict[str, list[int]] = {}
     for index, var in enumerate(daily_vars):
-      variable = daily.Variables(index) if daily else None  # type: ignore
+      variable = daily.Variables(index) if daily else None
       if variable:
         daily_data[var] = variable.ValuesInt64AsNumpy().tolist()
       else:

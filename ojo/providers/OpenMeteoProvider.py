@@ -16,7 +16,7 @@ import logging
 
 import openmeteo_requests
 import requests_cache
-from retry_requests import retry
+from retry_requests import retry  # type: ignore[import-untyped]
 
 from ..core.provider import Provider
 from ..core.settings import Settings

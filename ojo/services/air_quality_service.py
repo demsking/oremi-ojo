@@ -15,7 +15,7 @@
 import logging
 from typing import ClassVar
 
-from openmeteo_sdk.Unit import Unit
+from openmeteo_sdk.Unit import Unit  # type: ignore[import-untyped]
 
 from ..models.air_quality import EAQIData
 from ..models.air_quality import USAQIData
@@ -160,9 +160,11 @@ class AirQualityService:
     current_units = {}
 
     for index, var in enumerate(aqi_vars):
-      variable = current.Variables(index) if current else None  # type: ignore
+      variable = current.Variables(index) if current else None
       current_values[var] = variable.Value() if variable else 0
       current_units[var] = self._unit_label(variable.Unit()) if variable else ''
+
+    response_class: type[USAQIData] | type[EAQIData]
 
     if USA_LATITUDE_RANGE[0] <= lat <= USA_LATITUDE_RANGE[1] and USA_LONGITUDE_RANGE[0] <= lon <= USA_LONGITUDE_RANGE[1]:
       unit = current_units.get('us_aqi', 'USAQI') or 'USAQI'

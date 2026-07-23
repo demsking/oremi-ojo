@@ -214,6 +214,6 @@ async def get_pollen(
   pollen_service: PollenService = request.app.state.pollen_service
 
   return Response[PollenData](
-    provider=pollen_service.name,  # type: ignore
+    provider=pollen_service.name,
     data=await pollen_service.fetch(lat=lat, lon=lon),  # type: ignore
   )

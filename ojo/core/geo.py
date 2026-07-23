@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 from functools import lru_cache
+from typing import Any
 
 import httpx
 from pydantic import BaseModel
@@ -70,7 +71,7 @@ def _get_nominatim_http_client() -> httpx.AsyncClient:
 
 class Geocode:
   @staticmethod
-  async def _get(path: str, *, params: dict, language_result: str) -> httpx.Response:
+  async def _get(path: str, *, params: dict[str, Any], language_result: str) -> httpx.Response:
     headers = {
       'Accept-Language': language_result,
     }

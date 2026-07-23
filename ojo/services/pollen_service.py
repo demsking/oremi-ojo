@@ -17,7 +17,7 @@ import logging
 from typing import Any
 from typing import ClassVar
 
-from openmeteo_sdk.Unit import Unit
+from openmeteo_sdk.Unit import Unit  # type: ignore[import-untyped]
 
 from ..models.pollen import PollenData
 from ..models.pollen import PollenDetail
@@ -143,10 +143,10 @@ class PollenService:
         severity=self._classify_pollen(pollen_name, value),
       )
 
-    pollen_names = [name for name, detail in pollen_details.items() if detail.level > 0]
-    dominant_pollen = max(pollen_details.keys(), key=lambda k: pollen_details[k].level) if pollen_details else None
+    pollen_names = [name for name, detail in pollen_details.items() if (detail.level or 0) > 0]
+    dominant_pollen = max(pollen_details.keys(), key=lambda k: pollen_details[k].level or 0.0) if pollen_details else None
 
-    if dominant_pollen and pollen_details[dominant_pollen].level <= 0:
+    if dominant_pollen and (pollen_details[dominant_pollen].level or 0) <= 0:
       dominant_pollen = None
 
     return PollenData(
@@ -163,7 +163,7 @@ class PollenService:
     hourly = response.Hourly()
     utc_offset_seconds = response.UtcOffsetSeconds()
 
-    hourly_data: dict[PollenName, list] = {}
+    hourly_data: dict[PollenName, list[float]] = {}
     hourly_units: dict[PollenName, str] = {}
 
     for index, pollen_name in enumerate(self.POLLEN_FIELDS.keys()):
@@ -182,7 +182,7 @@ class PollenService:
       utc_time = datetime.datetime.fromtimestamp(start_time + i * interval, tz=datetime.UTC)
       local_time = utc_time + datetime.timedelta(seconds=utc_offset_seconds)
 
-      details = {}
+      details: dict[PollenName, PollenDetail] = {}
 
       for pollen_name, values in hourly_data.items():
         if i < len(values):
@@ -194,7 +194,7 @@ class PollenService:
               severity=self._classify_pollen(pollen_name, value),
             )
 
-      dominant_pollen = max(details.keys(), key=lambda k: details[k].level) if details else None
+      dominant_pollen = max(details.keys(), key=lambda k: details[k].level or 0.0) if details else None
 
       forecast_items.append(
         PollenForecastItem(

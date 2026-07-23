@@ -51,6 +51,8 @@ dev = [
   "python-slugify>=8.0.4",
   "reorder-python-imports>=3.14.0",
   "trio>=0.30.0",
+  "types-pytz>=2026.2.0.20260518",
+  "types-requests>=2.33.0.20260712",
 ]
 
 [build-system]
