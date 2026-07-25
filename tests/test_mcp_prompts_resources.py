@@ -62,6 +62,7 @@ def test_mcp_prompts_resources_endpoints_active():
     assert 'weather:///{lat}/{lon}/alerts' in resource_uris
     assert 'weather:///{lat}/{lon}/air-quality' in resource_uris
     assert 'weather:///{lat}/{lon}/pollen' in resource_uris
+    assert 'weather:///{lat}/{lon}/pollen/forecast' in resource_uris
 
     # 3. Test reading a resource via JSON-RPC
     payload_read = {

@@ -250,32 +250,21 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt()
-  def daily_pollen_forecast(
-    location: Annotated[str, Field(description='The location to get the daily pollen forecast for.')],
-  ) -> list[PromptMessage]:
-    """Assist the user in getting the daily pollen forecast."""
-    return _build_prompt(
-      f'Daily pollen forecast for {location}',
-      [
-        'Use `search_locations` to find coordinates.',
-        'Call `get_pollen_forecast`. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.',
-        'Provide the pollen forecast for the requested days.',
+  def pollen_forecast(
+      location: Annotated[
+          str,
+          Field(description="The location to get the pollen forecast for."),
       ],
-    )
-
-  @mcp.prompt()
-  def pollen_outlook(
-    location: Annotated[str, Field(description='The location to get a general pollen outlook for.')],
   ) -> list[PromptMessage]:
-    """Assist the user in getting a general pollen outlook."""
-    return _build_prompt(
-      f'Pollen outlook for {location}',
-      [
-        'Use `search_locations` to find coordinates.',
-        'Call `get_pollen_forecast`. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.',
-        'Describe the general pollen outlook and dominant allergens.',
-      ],
-    )
+      """Assist the user in getting the pollen forecast."""
+      return _build_prompt(
+          f"Pollen forecast for {location}",
+          [
+              "Use `search_locations` to find coordinates.",
+              "Call `get_pollen_forecast`. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.",
+              "Summarize the overall outlook and provide the daily forecast.",
+          ],
+      )
 
   @mcp.prompt()
   def pollen_risk_assessment(

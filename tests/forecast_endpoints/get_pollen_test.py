@@ -25,3 +25,20 @@ async def test_get_pollen_pollen_get():
   path = '/api/pollen?lat=48.8534951&lon=2.3483915'
   response = client.get(path)
   assert response.status_code == 200
+
+
+async def test_get_pollen_forecast_pollen_forecast_get():
+  """Get Pollen Forecast"""
+  path = '/api/pollen/forecast?lat=48.8534951&lon=2.3483915'
+  response = client.get(path)
+  assert response.status_code == 200
+
+
+def test_pollen_classify_nan_or_none():
+  """Classifying None or NaN pollen level should return ZERO severity."""
+  import math
+  from ojo.models.pollen import PollenName, PollenSeverity
+  from ojo.services.pollen_service import PollenService
+
+  assert PollenService._classify_pollen(PollenName.BIRCH, None) == PollenSeverity.ZERO
+  assert PollenService._classify_pollen(PollenName.BIRCH, math.nan) == PollenSeverity.ZERO

@@ -24,6 +24,7 @@ from ..models.air_quality import EAQIData
 from ..models.air_quality import USAQIData
 from ..models.forecast import ForecastData
 from ..models.pollen import PollenData
+from ..models.pollen import PollenForecastData
 from ..services.air_quality_service import AirQualityService
 from ..services.forecast_service import ForecastService
 from ..services.forecast_service import TemperatureUnit
@@ -33,11 +34,11 @@ from ..services.pollen_service import PollenService
 API_TAG_METADATA = {
   'name': 'Forecast Endpoints',
   'description': (
-    'Endpoints for retrieving detailed weather forecast data. These include '
-    'information such as temperature, humidity, wind speed, wind direction, '
-    'sunrise, and sunset times. The endpoints allow users to obtain weather '
-    'information for specific locations based on latitude and longitude, '
-    'helping them plan activities and make informed decisions.'
+    'Endpoints for retrieving detailed weather forecasts, air quality index data, '
+    'and pollen levels. These include information such as temperature, humidity, '
+    'wind speed, wind direction, sunrise/sunset times, air quality metrics (EAQI/USAQI), '
+    'and airborne pollen presence and 4-day hourly forecasts for specific locations based on '
+    'latitude and longitude, helping users plan activities and make informed decisions.'
   ),
 }
 
@@ -191,7 +192,7 @@ async def get_air_quality(
     },
   },
 )
-async def get_pollen(
+async def get_current_pollen(
   request: Request,
   lat: float = Query(
     description='The latitude of the location for which the pollen data is requested.',
@@ -216,4 +217,68 @@ async def get_pollen(
   return Response[PollenData](
     provider=pollen_service.name,
     data=await pollen_service.fetch(lat=lat, lon=lon),  # type: ignore
+  )
+
+
+@router.get(
+  path='/pollen/forecast',
+  responses={
+    200: {
+      'content': {
+        'application/json': {
+          'example': Response[PollenForecastData].model_validate(
+            {
+              'provider': 'Open-Météo',
+              'data': {
+                'units': 'grains/m³',
+                'forecast': [
+                  {
+                    'time': '2026-07-25T10:00:00+02:00',
+                    'dominant_pollen': 'grass',
+                    'details': {
+                      'alder': {'level': 0.0, 'severity': 'zero'},
+                      'birch': {'level': 0.0, 'severity': 'zero'},
+                      'grass': {'level': 23.4, 'severity': 'moderate'},
+                      'mugwort': {'level': 0.0, 'severity': 'zero'},
+                      'olive': {'level': 0.0, 'severity': 'zero'},
+                      'ragweed': {'level': 4.2, 'severity': 'moderate'},
+                    },
+                  }
+                ],
+              },
+            }
+          ),
+        },
+      },
+    },
+  },
+)
+async def get_pollen_forecast(
+  request: Request,
+  lat: float = Query(
+    description='The latitude of the location for which the pollen forecast data is requested.',
+    examples=[48.8534951],
+  ),
+  lon: float = Query(
+    description='The longitude of the location for which the pollen forecast data is requested.',
+    examples=[2.3483915],
+  ),
+  timezone: str = Query(
+    default='auto',
+    description='The timezone identifier for the location for which the pollen forecast data is requested.',
+    examples=['Africa/Douala', 'Europe/Paris'],
+  ),
+) -> Response[PollenForecastData]:
+  """
+  Retrieve hourly pollen forecast data for a specific location.
+
+  This endpoint provides hourly forecast information on the presence and concentration
+  levels of various airborne pollens at the given geographic coordinates.
+  Note: Data is only available in Europe during pollen season with 4 days forecast.
+  """
+  pollen_service: PollenService = request.app.state.pollen_service
+
+  return Response[PollenForecastData](
+    provider=pollen_service.name,
+    data=await pollen_service.forecast(lat=lat, lon=lon, timezone=timezone),  # type: ignore
   )

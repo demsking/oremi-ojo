@@ -13,6 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 import logging
+import math
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone as dt_timezone
 from typing import Any
 from typing import ClassVar
 
@@ -20,6 +24,8 @@ from openmeteo_sdk.Unit import Unit  # type: ignore[import-untyped]
 
 from ..models.pollen import PollenData
 from ..models.pollen import PollenDetail
+from ..models.pollen import PollenForecastData
+from ..models.pollen import PollenForecastItem
 from ..models.pollen import PollenName
 from ..models.pollen import PollenSeverity
 from ..providers.OpenMeteoProvider import OpenMeteoProvider
@@ -78,8 +84,10 @@ class PollenService:
     return self.SOURCE
 
   @staticmethod
-  def _classify_pollen(pollen_name: PollenName, value: float) -> PollenSeverity:
-    # Récupération des 5 seuils configurés
+  def _classify_pollen(pollen_name: PollenName, value: float | None) -> PollenSeverity:
+    if value is None or math.isnan(value):
+      return PollenSeverity.ZERO
+
     v_low, low, mod, high, v_high = PollenService.SILAM_THRESHOLDS[pollen_name]
 
     if value < v_low:
@@ -132,7 +140,8 @@ class PollenService:
 
     for index, pollen_name in enumerate(self.POLLEN_FIELDS.keys()):
       variable = current.Variables(index) if current else None
-      value = float(variable.Value() if variable else 0)
+      raw_val = variable.Value() if variable else None
+      value = None if raw_val is None or math.isnan(raw_val) else float(raw_val)
 
       current_units[pollen_name] = self._unit_label(variable.Unit()) if variable else self.DEFAULT_UNIT
       pollen_details[pollen_name] = PollenDetail(
@@ -151,6 +160,68 @@ class PollenService:
       units=current_units.get(dominant_pollen, self.DEFAULT_UNIT) if dominant_pollen else self.DEFAULT_UNIT,
       dominant_pollen=dominant_pollen,
       details=pollen_details,
+    )
+
+  async def forecast(self, lon: float, *, lat: float, timezone: str = 'auto') -> PollenForecastData | None:
+    logger.info(f'Fetching pollen forecast data for lon={lon} lat={lat} timezone={timezone}')
+
+    response = self._fetch_from_api(lon, lat, 'hourly', timezone=timezone)
+    hourly = response.Hourly()
+    if not hourly:
+      return None
+
+    utc_offset_seconds = response.UtcOffsetSeconds()
+    tz = dt_timezone(timedelta(seconds=utc_offset_seconds))
+
+    start_time = hourly.Time()
+    end_time = hourly.TimeEnd()
+    interval = hourly.Interval() or 3600
+    timestamps = list(range(start_time, end_time, interval))
+
+    pollen_values: dict[PollenName, list[float | None]] = {}
+    pollen_units: dict[PollenName, str] = {}
+
+    for index, pollen_name in enumerate(self.POLLEN_FIELDS.keys()):
+      variable = hourly.Variables(index) if hourly else None
+      raw_vals = self._values_list(variable) if variable else []
+      pollen_values[pollen_name] = [
+        None if v is None or math.isnan(v) else float(v) for v in raw_vals
+      ]
+      pollen_units[pollen_name] = self._unit_label(variable.Unit()) if variable else self.DEFAULT_UNIT
+
+    forecast_items: list[PollenForecastItem] = []
+    num_entries = len(timestamps)
+
+    for i in range(num_entries):
+      ts = timestamps[i]
+      time_str = datetime.fromtimestamp(ts, tz=tz).isoformat()
+
+      details: dict[PollenName, PollenDetail] = {}
+      for pollen_name in self.POLLEN_FIELDS.keys():
+        values = pollen_values[pollen_name]
+        value = values[i] if i < len(values) else None
+        details[pollen_name] = PollenDetail(
+          level=value,
+          severity=self._classify_pollen(pollen_name, value),
+        )
+
+      dominant_pollen = max(details.keys(), key=lambda k: details[k].level or 0.0) if details else None
+      if dominant_pollen and (details[dominant_pollen].level or 0) <= 0:
+        dominant_pollen = None
+
+      forecast_items.append(
+        PollenForecastItem(
+          time=time_str,
+          dominant_pollen=dominant_pollen,
+          details=details,
+        )
+      )
+
+    unit = next(iter(pollen_units.values()), self.DEFAULT_UNIT)
+
+    return PollenForecastData(
+      units=unit,
+      forecast=forecast_items,
     )
 
   @staticmethod

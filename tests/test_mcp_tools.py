@@ -38,6 +38,7 @@ def test_mcp_endpoint_active():
     assert 'get_sun_times' in tool_names
     assert 'get_air_quality' in tool_names
     assert 'get_pollen' in tool_names
+    assert 'get_pollen_forecast' in tool_names
     assert 'search_locations' in tool_names
     assert 'reverse_geocode' in tool_names
 
@@ -54,6 +55,7 @@ async def test_mcp_local_tools_list():
   assert 'get_sun_times' in tool_names
   assert 'get_air_quality' in tool_names
   assert 'get_pollen' in tool_names
+  assert 'get_pollen_forecast' in tool_names
   assert 'search_locations' in tool_names
   assert 'reverse_geocode' in tool_names
 
@@ -91,6 +93,14 @@ async def test_mcp_call_get_pollen():
   mcp = app.state.mcp
   _content, result_dict = await mcp.call_tool('get_pollen', {'lat': 48.8534951, 'lon': 2.3483915})
   assert result_dict['dominant_pollen'] is not None
+
+
+@pytest.mark.asyncio
+async def test_mcp_call_get_pollen_forecast():
+  mcp = app.state.mcp
+  _content, result_dict = await mcp.call_tool('get_pollen_forecast', {'lat': 48.8534951, 'lon': 2.3483915})
+  assert result_dict['units'] is not None
+  assert 'forecast' in result_dict
 
 
 @pytest.mark.asyncio

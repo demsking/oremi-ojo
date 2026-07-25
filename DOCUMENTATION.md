@@ -271,6 +271,10 @@ The MCP server exposes weather and environmental data as dynamic resource templa
   - _Template Parameters_:
     - `lat` (str): Latitude.
     - `lon` (str): Longitude.
+- **`weather:///{lat}/{lon}/pollen/forecast`**: Retrieve hourly pollen forecast data as a JSON resource.
+  - _Template Parameters_:
+    - `lat` (str): Latitude.
+    - `lon` (str): Longitude.
 
 ### Available MCP Prompts
 

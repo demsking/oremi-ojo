@@ -19,6 +19,7 @@ from ..models.air_quality import USAQIData
 from ..models.forecast import CurrentWeatherData
 from ..models.forecast import WeatherAlert
 from ..models.pollen import PollenData
+from ..models.pollen import PollenForecastData
 from ..services.air_quality_service import AirQualityService
 from ..services.forecast_service import ForecastService
 from ..services.pollen_service import PollenService
@@ -58,6 +59,14 @@ def register_mcp_resources(
   async def get_pollen_resource(lat: str, lon: str) -> PollenData | None:
     """Retrieve pollen allergen data as a resource."""
     return await pollen_service.fetch(
+      lat=float(lat),
+      lon=float(lon),
+    )
+
+  @mcp.resource('weather:///{lat}/{lon}/pollen/forecast', mime_type='application/json')
+  async def get_pollen_forecast_resource(lat: str, lon: str) -> PollenForecastData | None:
+    """Retrieve hourly pollen forecast data as a resource."""
+    return await pollen_service.forecast(
       lat=float(lat),
       lon=float(lon),
     )
