@@ -176,11 +176,57 @@ class ForecastService:
     return value.date().isoformat()
 
   @staticmethod
-  def _value_at(values: Any, index: int) -> Any:
-    if values is None or isinstance(values, int) or len(values) <= index:
+  def _values_list(variable: Any) -> list[Any]:
+    if not variable:
+      return []
+
+    if hasattr(variable, 'ValuesAsNumpy'):
+      try:
+        val = variable.ValuesAsNumpy()
+
+        if hasattr(val, 'tolist'):
+          return val.tolist()  # type: ignore[no-any-return]
+        if isinstance(val, (list, tuple)):
+          return list(val)
+      except RuntimeError:
+        pass
+
+    if hasattr(variable, 'ValuesInt64AsNumpy'):
+      try:
+        val = variable.ValuesInt64AsNumpy()
+
+        if hasattr(val, 'tolist'):
+          return val.tolist()  # type: ignore[no-any-return]
+        if isinstance(val, (list, tuple)):
+          return list(val)
+      except RuntimeError:
+        pass
+
+    if hasattr(variable, 'ValuesInt64'):
+      return [variable.ValuesInt64(i) for i in range(variable.ValuesInt64Length())]
+
+    if hasattr(variable, 'Values'):
+      return [variable.Values(i) for i in range(variable.ValuesLength())]
+
+    return []
+
+  @classmethod
+  def _value_at(cls, variable_or_values: Any, index: int) -> Any:
+    if variable_or_values is None:
+      return None
+
+    if isinstance(variable_or_values, (list, tuple)):
+      values = variable_or_values
+    elif hasattr(variable_or_values, 'ValuesAsNumpy') or hasattr(variable_or_values, 'ValuesInt64AsNumpy') or hasattr(variable_or_values, 'ValuesInt64') or hasattr(variable_or_values, 'Values'):
+      values = cls._values_list(variable_or_values)
+    else:
+      values = variable_or_values
+
+    if isinstance(values, int) or len(values) <= index:
       return None
 
     value = values[index]
+
     return value.item() if hasattr(value, 'item') else value
 
   @staticmethod
@@ -236,7 +282,6 @@ class ForecastService:
       daily_vars = ['sunrise', 'sunset']
 
     current_date = datetime.datetime.now().date().isoformat()
-
     responses = self.provider.client.weather_api(
       'https://api.open-meteo.com/v1/forecast',
       params={
@@ -263,7 +308,7 @@ class ForecastService:
 
     for index, var_name in enumerate(hourly_vars):
       variable = hourly.Variables(index) if hourly else None
-      hourly_data[var_name] = self._value_at(variable.ValuesAsNumpy(), hourly_index) if variable else None
+      hourly_data[var_name] = self._value_at(variable, hourly_index) if variable else None
       hourly_units[var_name] = self._unit_label(variable.Unit()) if variable else ''
 
     daily_data: dict[str, object] = {}
@@ -275,10 +320,10 @@ class ForecastService:
         daily_data[var_name] = None
       elif var_name in ('sunrise', 'sunset'):
         daily_data[var_name] = self.format_unix_time(
-          self._value_at(variable.ValuesInt64AsNumpy(), daily_index), utc_offset_seconds
+          self._value_at(variable, daily_index), utc_offset_seconds
         )
       else:
-        daily_data[var_name] = self._value_at(variable.ValuesAsNumpy(), daily_index)
+        daily_data[var_name] = self._value_at(variable, daily_index)
 
     return hourly_data, hourly_units, daily_data, hourly_vars
 
@@ -461,7 +506,7 @@ class ForecastService:
     for index, var in enumerate(hourly_vars):
       variable = hourly.Variables(index) if hourly else None
       if variable:
-        hourly_data[var] = variable.ValuesAsNumpy().tolist()
+        hourly_data[var] = self._values_list(variable)
         hourly_units[var] = self._unit_label(variable.Unit())
       else:
         hourly_data[var] = []
@@ -552,10 +597,7 @@ class ForecastService:
     for index, var in enumerate(daily_vars):
       variable = daily.Variables(index) if daily else None
       if variable:
-        if var in ('sunrise', 'sunset'):
-          daily_data[var] = variable.ValuesInt64AsNumpy().tolist()
-        else:
-          daily_data[var] = variable.ValuesAsNumpy().tolist()
+        daily_data[var] = self._values_list(variable)
         daily_units[var] = self._unit_label(variable.Unit())
       else:
         daily_data[var] = []
@@ -630,7 +672,7 @@ class ForecastService:
     daily_data: dict[str, list[float]] = {}
     for index, var in enumerate(daily_vars):
       variable = daily.Variables(index) if daily else None
-      daily_data[var] = variable.ValuesAsNumpy().tolist() if variable else []
+      daily_data[var] = self._values_list(variable) if variable else []
 
     start_time = daily.Time() if daily else 0
     interval = (daily.Interval() if daily else 86400) or 86400
@@ -733,10 +775,7 @@ class ForecastService:
     daily_data: dict[str, list[int]] = {}
     for index, var in enumerate(daily_vars):
       variable = daily.Variables(index) if daily else None
-      if variable:
-        daily_data[var] = variable.ValuesInt64AsNumpy().tolist()
-      else:
-        daily_data[var] = []
+      daily_data[var] = self._values_list(variable) if variable else []
 
     start_time = daily.Time() if daily else 0
     interval = (daily.Interval() if daily else 86400) or 86400

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import datetime
 import logging
 from typing import Any
 from typing import ClassVar
@@ -21,8 +20,6 @@ from openmeteo_sdk.Unit import Unit  # type: ignore[import-untyped]
 
 from ..models.pollen import PollenData
 from ..models.pollen import PollenDetail
-from ..models.pollen import PollenForecastData
-from ..models.pollen import PollenForecastItem
 from ..models.pollen import PollenName
 from ..models.pollen import PollenSeverity
 from ..providers.OpenMeteoProvider import OpenMeteoProvider
@@ -156,55 +153,22 @@ class PollenService:
       details=pollen_details,
     )
 
-  async def forecast(self, lon: float, *, lat: float, timezone: str | None = 'auto') -> PollenForecastData | None:
-    logger.info(f'Fetching pollens forecast data for lon={lon} lat={lat}')
-
-    response = self._fetch_from_api(lon, lat, 'hourly', timezone or 'auto')
-    hourly = response.Hourly()
-    utc_offset_seconds = response.UtcOffsetSeconds()
-
-    hourly_data: dict[PollenName, list[float]] = {}
-    hourly_units: dict[PollenName, str] = {}
-
-    for index, pollen_name in enumerate(self.POLLEN_FIELDS.keys()):
-      variable = hourly.Variables(index) if hourly else None
-      hourly_data[pollen_name] = variable.ValuesAsNumpy().tolist() if variable else []
-      hourly_units[pollen_name] = self._unit_label(variable.Unit()) if variable else self.DEFAULT_UNIT
-
-    start_time = hourly.Time() if hourly else 0
-    interval = (hourly.Interval() if hourly else 3600) or 3600
-    length = len(next(iter(hourly_data.values()), []))
-
-    forecast_items = []
-    units = next(iter(hourly_units.values()), self.DEFAULT_UNIT)
-
-    for i in range(length):
-      utc_time = datetime.datetime.fromtimestamp(start_time + i * interval, tz=datetime.UTC)
-      local_time = utc_time + datetime.timedelta(seconds=utc_offset_seconds)
-
-      details: dict[PollenName, PollenDetail] = {}
-
-      for pollen_name, values in hourly_data.items():
-        if i < len(values):
-          value = float(values[i])
-
-          if value > 0:
-            details[pollen_name] = PollenDetail(
-              level=value,
-              severity=self._classify_pollen(pollen_name, value),
-            )
-
-      dominant_pollen = max(details.keys(), key=lambda k: details[k].level or 0.0) if details else None
-
-      forecast_items.append(
-        PollenForecastItem(
-          time=local_time.isoformat(),
-          dominant_pollen=dominant_pollen,
-          details=details,
-        )
-      )
-
-    return PollenForecastData(
-      units=units,
-      forecast=forecast_items,
-    )
+  @staticmethod
+  def _values_list(variable: Any) -> list[Any]:
+    if not variable:
+      return []
+    if hasattr(variable, 'ValuesAsNumpy'):
+      try:
+        return variable.ValuesAsNumpy().tolist()  # type: ignore[no-any-return]
+      except RuntimeError:
+        pass
+    if hasattr(variable, 'ValuesInt64AsNumpy'):
+      try:
+        return variable.ValuesInt64AsNumpy().tolist()  # type: ignore[no-any-return]
+      except RuntimeError:
+        pass
+    if hasattr(variable, 'ValuesInt64'):
+      return [variable.ValuesInt64(i) for i in range(variable.ValuesInt64Length())]
+    if hasattr(variable, 'Values'):
+      return [variable.Values(i) for i in range(variable.ValuesLength())]
+    return []
