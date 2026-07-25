@@ -21,31 +21,29 @@ from ..core.geo import NotFoundLocationException
 
 
 def register_geocode_mcp_tools(mcp: FastMCP) -> None:
-  @mcp.tool(name='search_locations')
+  @mcp.tool(
+    title='Search Locations',
+    name='search_locations',
+    description='Look up location coordinates and details for a query string.',
+  )
   async def search_locations(
     query: str,
     limit: int = 10,
   ) -> list[Location]:
-    """Look up location coordinates and details for a query string.
-
-    This tool performs forward geocoding, searching for a place by name,
-    address, or landmark, and returning matching locations with their coordinates.
-    """
     try:
       return await Geocode.search(query=query, limit=limit)
     except Exception as exception:
       raise ToolError(f'Error searching locations: {exception}') from exception
 
-  @mcp.tool(name='reverse_geocode')
+  @mcp.tool(
+    title='Reverse Geocode',
+    name='reverse_geocode',
+    description='Retrieve location details by latitude and longitude.',
+  )
   async def reverse_geocode(
     lat: float,
     lon: float,
   ) -> Location:
-    """Retrieve location details by latitude and longitude.
-
-    This tool performs reverse geocoding, looking up address and place name
-    details for the given latitude and longitude coordinates.
-    """
     try:
       return await Geocode.reverse(lat=lat, lon=lon)
     except NotFoundLocationException as exception:

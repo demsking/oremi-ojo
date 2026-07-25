@@ -25,18 +25,17 @@ from ..services.forecast_service import TemperatureUnit
 
 
 def register_forecast_mcp_tools(mcp: FastMCP, service: ForecastService) -> None:
-  @mcp.tool(name='get_current_weather')
+  @mcp.tool(
+    title='Get Current Weather',
+    name='get_current_weather',
+    description='Retrieve current weather conditions for a specific location.',
+  )
   async def get_current_weather(
     lat: float,
     lon: float,
     timezone: str = 'auto',
     temperature_unit: TemperatureUnit = 'celsius',
   ) -> CurrentWeatherData:
-    """Retrieve current weather conditions for a specific location.
-
-    This tool fetches current temperature, humidity, wind speed, wind direction,
-    apparent temperature, weather code, and day/night status.
-    """
     try:
       return await service.fetch_current_weather(
         lat=lat,
@@ -47,7 +46,11 @@ def register_forecast_mcp_tools(mcp: FastMCP, service: ForecastService) -> None:
     except Exception as exception:
       raise ToolError(f'Error fetching current weather: {exception}') from exception
 
-  @mcp.tool(name='get_hourly_forecast')
+  @mcp.tool(
+    title='Get Hourly Forecast',
+    name='get_hourly_forecast',
+    description='Retrieve hourly weather forecast for the next hours.',
+  )
   async def get_hourly_forecast(
     lat: float,
     lon: float,
@@ -55,11 +58,6 @@ def register_forecast_mcp_tools(mcp: FastMCP, service: ForecastService) -> None:
     temperature_unit: TemperatureUnit = 'celsius',
     hours: int = 24,
   ) -> HourlyForecastResponse:
-    """Retrieve hourly weather forecast for the next hours.
-
-    This tool fetches hourly predictions for temperature, humidity, wind, and
-    precipitation starting from the current hour.
-    """
     try:
       return await service.fetch_hourly_forecast(
         lat=lat,
@@ -71,7 +69,11 @@ def register_forecast_mcp_tools(mcp: FastMCP, service: ForecastService) -> None:
     except Exception as exception:
       raise ToolError(f'Error fetching hourly forecast: {exception}') from exception
 
-  @mcp.tool(name='get_daily_forecast')
+  @mcp.tool(
+    title='Get Daily Forecast',
+    name='get_daily_forecast',
+    description='Retrieve daily weather forecast for the next days.',
+  )
   async def get_daily_forecast(
     lat: float,
     lon: float,
@@ -79,11 +81,6 @@ def register_forecast_mcp_tools(mcp: FastMCP, service: ForecastService) -> None:
     temperature_unit: TemperatureUnit = 'celsius',
     days: int = 7,
   ) -> DailyForecastResponse:
-    """Retrieve daily weather forecast for the next days.
-
-    This tool fetches daily maximum and minimum temperatures, total rain,
-    wind speeds, and UV index.
-    """
     try:
       return await service.fetch_daily_forecast(
         lat=lat,
@@ -95,17 +92,16 @@ def register_forecast_mcp_tools(mcp: FastMCP, service: ForecastService) -> None:
     except Exception as exception:
       raise ToolError(f'Error fetching daily forecast: {exception}') from exception
 
-  @mcp.tool(name='get_weather_alerts')
+  @mcp.tool(
+    title='Get Weather Alerts',
+    name='get_weather_alerts',
+    description='Retrieve severe weather alerts or warnings for a specific location.',
+  )
   async def get_weather_alerts(
     lat: float,
     lon: float,
     timezone: str = 'auto',
   ) -> list[WeatherAlert]:
-    """Retrieve severe weather alerts or warnings for a specific location.
-
-    This tool analyzes upcoming forecast data to detect severe weather conditions
-    such as extreme temperatures, high winds, heavy rain, or high UV levels.
-    """
     try:
       return await service.fetch_weather_alerts(
         lat=lat,
@@ -115,18 +111,17 @@ def register_forecast_mcp_tools(mcp: FastMCP, service: ForecastService) -> None:
     except Exception as exception:
       raise ToolError(f'Error fetching weather alerts: {exception}') from exception
 
-  @mcp.tool(name='get_sun_times')
+  @mcp.tool(
+    title='Get Sun Times',
+    name='get_sun_times',
+    description='Retrieve sunrise and sunset times for a specific location.',
+  )
   async def get_sun_times(
     lat: float,
     lon: float,
     timezone: str = 'auto',
     days: int = 7,
   ) -> list[SunTimes]:
-    """Retrieve sunrise and sunset times for a specific location.
-
-    This tool fetches the sunrise and sunset times for the specified coordinates
-    over the next few days.
-    """
     try:
       return await service.fetch_sun_times(
         lat=lat,

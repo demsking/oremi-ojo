@@ -230,7 +230,7 @@ Below is the list of strongly-typed tools exposed by the MCP server:
   - _Arguments_:
     - `lat` (float): Latitude.
     - `lon` (float): Longitude.
-- **`get_pollen`**: Retrieve current pollen presence and concentration levels (e.g., grass, birch, olive) along with SILAM severity levels.
+- **`get_current_pollen`**: Retrieve current pollen presence and concentration levels (e.g., grass, birch, olive) along with SILAM severity levels.
   - _Arguments_:
     - `lat` (float): Latitude.
     - `lon` (float): Longitude.

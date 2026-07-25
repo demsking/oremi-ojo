@@ -21,16 +21,15 @@ from ..services.air_quality_service import AirQualityService
 
 
 def register_air_quality_mcp_tools(mcp: FastMCP, service: AirQualityService) -> None:
-  @mcp.tool(name='get_air_quality')
+  @mcp.tool(
+    title='Get Air Quality',
+    name='get_air_quality',
+    description='Retrieve current air quality data for a specific location.',
+  )
   async def get_air_quality(
     lat: float,
     lon: float,
   ) -> EAQIData | USAQIData:
-    """Retrieve current air quality data for a specific location.
-
-    This tool returns air quality metrics (AQI) and levels, localized to
-    the specified latitude and longitude, using either EAQI or USAQI standards.
-    """
     try:
       return await service.fetch(lat=lat, lon=lon)
     except Exception as exception:

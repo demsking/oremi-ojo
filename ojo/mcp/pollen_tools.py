@@ -21,17 +21,15 @@ from ..services.pollen_service import PollenService
 
 
 def register_pollen_mcp_tools(mcp: FastMCP, service: PollenService) -> None:
-  @mcp.tool(name='get_pollen')
-  async def get_pollen(
+  @mcp.tool(
+    title='Get Current Pollen',
+    name='get_current_pollen',
+    description='Retrieve current pollen data for a specific location.',
+  )
+  async def get_current_pollen(
     lat: float,
     lon: float,
   ) -> PollenData:
-    """Retrieve current pollen data for a specific location.
-
-    This tool provides information on the presence and concentration levels
-    of various airborne pollens (like grass, birch, olive, ragweed, etc.)
-    at the given geographic coordinates.
-    """
     try:
       result = await service.fetch(lat=lat, lon=lon)
 
@@ -45,19 +43,16 @@ def register_pollen_mcp_tools(mcp: FastMCP, service: PollenService) -> None:
 
       raise ToolError(f'Error fetching pollen data: {exception}') from exception
 
-  @mcp.tool(name='get_pollen_forecast')
+  @mcp.tool(
+    title='Get Pollen Forecast',
+    name='get_pollen_forecast',
+    description='Retrieve hourly pollen forecast for a specific location.',
+  )
   async def get_pollen_forecast(
     lat: float,
     lon: float,
     timezone: str = 'auto',
   ) -> PollenForecastData:
-    """Retrieve hourly pollen forecast for a specific location.
-
-    This tool provides forecast information on the presence and concentration levels
-    of various airborne pollens (like grass, birch, olive, ragweed, etc.)
-    at the given geographic coordinates.
-    Note: Data is only available in Europe during pollen season with 4 days forecast.
-    """
     try:
       result = await service.forecast(lat=lat, lon=lon, timezone=timezone)
 
