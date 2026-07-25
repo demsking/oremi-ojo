@@ -325,10 +325,7 @@ Prompts are predefined template messages for specific tasks, allowing agents to 
 - **`current_pollen_conditions`**: Assist in checking current pollen conditions. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
   - _Arguments_:
     - `location` (str): The location name or address.
-- **`daily_pollen_forecast`**: Assist in getting the daily pollen forecast. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
-  - _Arguments_:
-    - `location` (str): The location name or address.
-- **`pollen_outlook`**: Assist in getting a general pollen outlook. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
+- **`pollen_forecast`**: Assist in getting the pollen forecast. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
   - _Arguments_:
     - `location` (str): The location name or address.
 - **`pollen_risk_assessment`**: Assist in assessing pollen allergy risks. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
@@ -337,20 +334,10 @@ Prompts are predefined template messages for specific tasks, allowing agents to 
 - **`pollen_health_advice`**: Assist in getting health advice related to current pollen levels. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
   - _Arguments_:
     - `location` (str): The location name or address.
-- **`outdoor_activity_pollen_check`**: Assist in checking if outdoor activities are safe regarding pollen. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
-  - _Arguments_:
-    - `location` (str): The location name or address.
-- **`pollen_alert_subscription`**: Assist in setting up pollen alerts. Note: Pollen data is only available in Europe during pollen season with 4 days forecast.
-  - _Arguments_:
-    - `location` (str): The location name or address.
 - **`explain_pollen_type`**: Assist in understanding a specific pollen type.
   - _Arguments_:
-    - `pollen_type` (str): The pollen type to explain, e.g., 'birch', 'grass'.
-- **`weather_data_source`**: Provide information about the data source used for weather forecasts and current conditions.
-- **`air_quality_data_source`**: Provide information about the data source used for air quality information.
-- **`pollen_data_source`**: Provide information about the data source used for pollen levels and forecasts.
-- **`geocoding_data_source`**: Provide information about the data source used for location geocoding and address lookups.
-- **`data_sources_summary`**: Provide a comprehensive summary of all external data sources powering Oremi Ojọ.
+    - `pollen_type` (str): The pollen type to explain (supported types: `alder_pollen`, `birch_pollen`, `grass_pollen`, `mugwort_pollen`, `olive_pollen`, `ragweed_pollen`).
+- **`data_sources`**: Provide a comprehensive summary of all external data sources powering Oremi Ojọ.
 
 ## Development
 

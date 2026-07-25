@@ -39,11 +39,7 @@ def test_mcp_prompts_resources_endpoints_active():
     assert 'current_weather' in prompt_names
     assert 'today_weather' in prompt_names
     assert 'weather_alerts' in prompt_names
-    assert 'weather_data_source' in prompt_names
-    assert 'air_quality_data_source' in prompt_names
-    assert 'pollen_data_source' in prompt_names
-    assert 'geocoding_data_source' in prompt_names
-    assert 'data_sources_summary' in prompt_names
+    assert 'data_sources' in prompt_names
 
     # 2. Test resource templates list
     payload_resources = {
@@ -91,11 +87,7 @@ async def test_mcp_local_prompts():
   assert 'current_weather' in prompt_names
   assert 'today_weather' in prompt_names
   assert 'weather_alerts' in prompt_names
-  assert 'weather_data_source' in prompt_names
-  assert 'air_quality_data_source' in prompt_names
-  assert 'pollen_data_source' in prompt_names
-  assert 'geocoding_data_source' in prompt_names
-  assert 'data_sources_summary' in prompt_names
+  assert 'data_sources' in prompt_names
 
   # Render prompt with arguments
   prompt = await mcp.get_prompt('current_weather', arguments={'location': 'Paris'})
@@ -104,10 +96,16 @@ async def test_mcp_local_prompts():
   assert 'Paris' in prompt.messages[0].content.text
 
   # Render prompt without arguments
-  prompt_no_args = await mcp.get_prompt('data_sources_summary')
+  prompt_no_args = await mcp.get_prompt('data_sources')
   assert prompt_no_args is not None
   assert len(prompt_no_args.messages) > 0
   assert 'Summary' in prompt_no_args.messages[0].content.text
+
+  # Render explain_pollen_type prompt
+  prompt_explain = await mcp.get_prompt('explain_pollen_type', arguments={'pollen_type': 'grass_pollen'})
+  assert prompt_explain is not None
+  assert len(prompt_explain.messages) > 0
+  assert 'grass_pollen' in prompt_explain.messages[0].content.text
 
 
 

@@ -227,23 +227,6 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt(
-    title='Weather Summary',
-    name='weather_summary',
-    description='Assist the user in getting a comprehensive weather summary.',
-  )
-  def weather_summary(
-    location: Annotated[str, Field(description='The location to get a comprehensive weather summary for.')],
-  ) -> list[PromptMessage]:
-    return _build_prompt(
-      f'Comprehensive weather summary for {location}',
-      [
-        'Use `search_locations` to find coordinates.',
-        'Call `get_current_weather`, `get_daily_forecast`, and `get_air_quality`.',
-        'Synthesize the data into a complete weather summary.',
-      ],
-    )
-
-  @mcp.prompt(
     title='Plan Day',
     name='plan_day',
     description='Assist the user in planning their day around the weather.',
@@ -349,121 +332,59 @@ def register_mcp_prompts(mcp: FastMCP) -> None:
     )
 
   @mcp.prompt(
-    title='Outdoor Activity Pollen Check',
-    name='outdoor_activity_pollen_check',
-    description='Assist the user in checking if outdoor activities are safe regarding pollen.',
-  )
-  def outdoor_activity_pollen_check(
-    location: Annotated[str, Field(description='The location to check if outdoor activities are safe regarding pollen.')],
-  ) -> list[PromptMessage]:
-    return _build_prompt(
-      f'Outdoor activity pollen check for {location}',
-      [
-        'Use `search_locations` to find coordinates.',
-        'Call `get_current_pollen` and optionally `get_current_weather`.',
-        'Advise on whether it is a good idea to do outdoor activities based on pollen data (only available in Europe).',
-      ],
-    )
-
-  @mcp.prompt(
-    title='Pollen Alert Subscription',
-    name='pollen_alert_subscription',
-    description='Assist the user in setting up pollen alerts.',
-  )
-  def pollen_alert_subscription(
-    location: Annotated[str, Field(description='The location to set up pollen alerts for.')],
-  ) -> list[PromptMessage]:
-    return _build_prompt(
-      f'Pollen alert setup for {location}',
-      [
-        'Use `search_locations` to find coordinates.',
-        'Call `get_current_pollen` to check baseline levels.',
-        'Instruct the user on how they can be reminded or alerted (e.g., using a reminder tool if available), noting the 4-day forecast limit in Europe.',
-      ],
-    )
-
-  @mcp.prompt(
-    title='Explain Pollen Type',
-    name='explain_pollen_type',
-    description='Assist the user in understanding a specific pollen type.',
+      title='Explain Pollen Type',
+      name='explain_pollen_type',
+      description='Assist the user in understanding a specific pollen type.',
   )
   def explain_pollen_type(
-    pollen_type: Annotated[str, Field(description="The pollen type to explain, e.g., 'birch', 'grass'.")],
+    pollen_type: Annotated[
+      str,
+      Field(
+        description=(
+          "The user request containing the pollen type to explain. "
+          "Supported types and their synonyms:\\n"
+          "- 'alder_pollen' - Alder tree pollen (synonyms: Alnus, alder catkins). "
+          "Early spring pollen from deciduous trees. \\n"
+          "- 'birch_pollen' - Birch tree pollen (synonyms: Betula, birch catkins). "
+          "One of the most common spring allergens. \\n"
+          "- 'grass_pollen' - Grass pollen (synonyms: Poaceae, meadow grass, ryegrass, gramin). "
+          "Late spring/summer pollen from various grasses. \\n"
+          "- 'mugwort_pollen' - Mugwort pollen (synonyms: Artemisia, wild wormwood). "
+          "Late summer/autumn weed pollen. \\n"
+          "- 'olive_pollen' - Olive tree pollen (synonyms: Olea, olive blossoms). "
+          "Spring pollen from cultivated olive trees, common in Mediterranean regions. \\n"
+          "- 'ragweed_pollen' - Ragweed pollen (synonyms: Ambrosia, bitterweed). "
+          "Late summer/autumn weed pollen, highly allergenic. \\n\\n"
+          "Choose the most appropriate type based on user's description."
+        )
+      ),
+    ],
   ) -> list[PromptMessage]:
-    return _build_prompt(
-      f'Explanation for pollen type: {pollen_type}',
-      [
-        'Use your general knowledge to explain the characteristics of the requested pollen type.',
-        'Describe its typical season, the plants it comes from, and its common health impacts.',
-      ],
-    )
+    return [
+      PromptMessage(
+        role='user',
+        content=TextContent(
+          type='text',
+          text=(
+            f'The user wants an explanation for pollen type: {pollen_type}\\n\\n'
+            'Describe its typical season, the plants it comes from, its '
+            'geographic distribution, and common health impacts (allergy symptoms).'
+            'If the user describes symptoms or asks about management, '
+            'offer practical, medically-safe advice (avoidance strategies, '
+            'when to seek medical help).\n\n'
+            'Do not use any tools. This is a knowledge-based question.\n'
+            'Always provide a clear, friendly, and natural language response.'
+          ),
+        ),
+      )
+    ]
 
   @mcp.prompt(
-    title='Weather Data Source',
-    name='weather_data_source',
-    description='Provide information about the data source used for weather forecasts and current conditions.',
-  )
-  def weather_data_source() -> list[PromptMessage]:
-    return _build_prompt(
-      'Information about the weather forecast data source',
-      [
-        'Explain that Oremi retrieves current weather conditions and forecasts from the Open-Meteo API.',
-        'Mention that Open-Meteo combines weather model output from multiple national weather services into a continuous, seamlessly updated timeseries.',
-        'Detail that each time a model run is ingested, the forecast data are stitched to the previous run without gaps or discontinuities, so the hourly timeseries always reflects the latest available initialisation.',
-        'Explain that for each location, the highest-resolution applicable model is selected automatically.',
-      ],
-    )
-
-  @mcp.prompt(
-    title='Air Quality Data Source',
-    name='air_quality_data_source',
-    description='Provide information about the data source used for air quality information.',
-  )
-  def air_quality_data_source() -> list[PromptMessage]:
-    return _build_prompt(
-      'Information about the air quality data source',
-      [
-        'Explain that air quality metrics (AQI) are retrieved from the Open-Meteo Air Quality API.',
-        'Mention that it calculates EAQI (European Air Quality Index) for European locations and USAQI (US Air Quality Index) for US locations.',
-        'Briefly list standard pollutants monitored like PM2.5, PM10, ozone, carbon monoxide, nitrogen dioxide, and sulphur dioxide.',
-      ],
-    )
-
-  @mcp.prompt(
-    title='Pollen Data Source',
-    name='pollen_data_source',
-    description='Provide information about the data source used for pollen levels and forecasts.',
-  )
-  def pollen_data_source() -> list[PromptMessage]:
-    return _build_prompt(
-      'Information about the pollen data source',
-      [
-        'Explain that pollen allergen data is sourced from the Copernicus Atmosphere Monitoring Service (CAMS) and served via the Open-Meteo Air Quality API.',
-        'Clarify that pollen data is specifically available for locations in Europe during the pollen season with a 4-day forecast.',
-        'List the supported pollen allergens: alder, birch, grass, mugwort, olive, and ragweed.',
-      ],
-    )
-
-  @mcp.prompt(
-    title='Geocoding Data Source',
-    name='geocoding_data_source',
-    description='Provide information about the data source used for location geocoding and address lookups.',
-  )
-  def geocoding_data_source() -> list[PromptMessage]:
-    return _build_prompt(
-      'Information about the geocoding data source',
-      [
-        'Explain that location search (forward geocoding) and address lookups (reverse geocoding) are powered by Nominatim OpenStreetMap.',
-        'Mention that this service handles coordinates mapping, region detection, and address details using open geospatial data.',
-      ],
-    )
-
-  @mcp.prompt(
-    title='Data Sources Summary',
-    name='data_sources_summary',
+    title='Data Sources',
+    name='data_sources',
     description='Provide a comprehensive summary of all external data sources powering Oremi Ojọ.',
   )
-  def data_sources_summary() -> list[PromptMessage]:
+  def data_sources() -> list[PromptMessage]:
     return _build_prompt(
       'Summary of all Oremi Ojọ data sources',
       [
