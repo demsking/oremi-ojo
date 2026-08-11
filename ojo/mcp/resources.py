@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from ..models.air_quality import EAQIData
 from ..models.air_quality import USAQIData
@@ -26,7 +26,7 @@ from ..services.pollen_service import PollenService
 
 
 def register_mcp_resources(
-  mcp: FastMCP,
+  mcp: MCPServer[None],
   forecast_service: ForecastService,
   air_quality_service: AirQualityService,
   pollen_service: PollenService,

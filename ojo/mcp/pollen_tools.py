@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..models.pollen import PollenData
 from ..models.pollen import PollenForecastData
 from ..services.pollen_service import PollenService
 
 
-def register_pollen_mcp_tools(mcp: FastMCP, service: PollenService) -> None:
+def register_pollen_mcp_tools(mcp: MCPServer[None], service: PollenService) -> None:
   @mcp.tool(
     title='Get Current Pollen',
     name='get_current_pollen',

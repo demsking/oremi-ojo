@@ -20,8 +20,7 @@ from ojo import app
 
 def test_mcp_endpoint_active():
   # Check if streamable HTTP MCP server route /mcp is active
-  # Running inside a context manager ensures Starlette's lifespan executes,
-  # initializing the FastMCP session manager task group.
+  # Running inside a context manager ensures the MCP transport lifespan executes.
   with TestClient(app, backend='asyncio') as client:
     payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list', 'params': {}}
     response = client.post('http://localhost:8080/mcp', json=payload, headers={'Accept': 'application/json'})
@@ -63,7 +62,8 @@ async def test_mcp_local_tools_list():
 @pytest.mark.asyncio
 async def test_mcp_call_search_locations():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('search_locations', {'query': 'Paris', 'limit': 1})
+  result_dict = (await mcp.call_tool('search_locations', {'query': 'Paris', 'limit': 1})).structured_content
+  assert result_dict is not None
   locations = result_dict['result']
   assert isinstance(locations, list)
   assert len(locations) > 0
@@ -74,7 +74,8 @@ async def test_mcp_call_search_locations():
 @pytest.mark.asyncio
 async def test_mcp_call_reverse_geocode():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('reverse_geocode', {'lat': 48.8534951, 'lon': 2.3483915})
+  result_dict = (await mcp.call_tool('reverse_geocode', {'lat': 48.8534951, 'lon': 2.3483915})).structured_content
+  assert result_dict is not None
   assert result_dict['name'] is not None
   assert result_dict['lat'] == pytest.approx(48.8534951, abs=1e-3)
 
@@ -82,7 +83,8 @@ async def test_mcp_call_reverse_geocode():
 @pytest.mark.asyncio
 async def test_mcp_call_get_air_quality():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_air_quality', {'lat': 48.8534951, 'lon': 2.3483915})
+  result_dict = (await mcp.call_tool('get_air_quality', {'lat': 48.8534951, 'lon': 2.3483915})).structured_content
+  assert result_dict is not None
   air_quality = result_dict['result']
   assert 'value' in air_quality
   assert 'level' in air_quality
@@ -91,14 +93,16 @@ async def test_mcp_call_get_air_quality():
 @pytest.mark.asyncio
 async def test_mcp_call_get_current_pollen():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_current_pollen', {'lat': 48.8534951, 'lon': 2.3483915})
+  result_dict = (await mcp.call_tool('get_current_pollen', {'lat': 48.8534951, 'lon': 2.3483915})).structured_content
+  assert result_dict is not None
   assert result_dict['dominant_pollen'] is not None
 
 
 @pytest.mark.asyncio
 async def test_mcp_call_get_pollen_forecast():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_pollen_forecast', {'lat': 48.8534951, 'lon': 2.3483915})
+  result_dict = (await mcp.call_tool('get_pollen_forecast', {'lat': 48.8534951, 'lon': 2.3483915})).structured_content
+  assert result_dict is not None
   assert result_dict['units'] is not None
   assert 'forecast' in result_dict
 
@@ -106,7 +110,8 @@ async def test_mcp_call_get_pollen_forecast():
 @pytest.mark.asyncio
 async def test_mcp_call_get_current_weather():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_current_weather', {'lat': 48.8534951, 'lon': 2.3483915})
+  result_dict = (await mcp.call_tool('get_current_weather', {'lat': 48.8534951, 'lon': 2.3483915})).structured_content
+  assert result_dict is not None
   assert result_dict['temperature'] is not None
   assert 'relative_humidity' in result_dict
   assert 'wind_speed' in result_dict
@@ -117,7 +122,8 @@ async def test_mcp_call_get_current_weather():
 @pytest.mark.asyncio
 async def test_mcp_call_get_hourly_forecast():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_hourly_forecast', {'lat': 48.8534951, 'lon': 2.3483915, 'hours': 3})
+  result_dict = (await mcp.call_tool('get_hourly_forecast', {'lat': 48.8534951, 'lon': 2.3483915, 'hours': 3})).structured_content
+  assert result_dict is not None
   assert 'forecast' in result_dict
   assert len(result_dict['forecast']) == 3
   assert result_dict['forecast'][0]['temperature'] is not None
@@ -126,7 +132,8 @@ async def test_mcp_call_get_hourly_forecast():
 @pytest.mark.asyncio
 async def test_mcp_call_get_daily_forecast():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_daily_forecast', {'lat': 48.8534951, 'lon': 2.3483915, 'days': 3})
+  result_dict = (await mcp.call_tool('get_daily_forecast', {'lat': 48.8534951, 'lon': 2.3483915, 'days': 3})).structured_content
+  assert result_dict is not None
   assert 'forecast' in result_dict
   assert len(result_dict['forecast']) == 3
   assert result_dict['forecast'][0]['temperature_2m_max'] is not None
@@ -135,14 +142,16 @@ async def test_mcp_call_get_daily_forecast():
 @pytest.mark.asyncio
 async def test_mcp_call_get_weather_alerts():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_weather_alerts', {'lat': 48.8534951, 'lon': 2.3483915})
+  result_dict = (await mcp.call_tool('get_weather_alerts', {'lat': 48.8534951, 'lon': 2.3483915})).structured_content
+  assert result_dict is not None
   assert isinstance(result_dict['result'], list)
 
 
 @pytest.mark.asyncio
 async def test_mcp_call_get_sun_times():
   mcp = app.state.mcp
-  _content, result_dict = await mcp.call_tool('get_sun_times', {'lat': 48.8534951, 'lon': 2.3483915, 'days': 2})
+  result_dict = (await mcp.call_tool('get_sun_times', {'lat': 48.8534951, 'lon': 2.3483915, 'days': 2})).structured_content
+  assert result_dict is not None
   assert isinstance(result_dict['result'], list)
   assert len(result_dict['result']) == 2
   assert 'sunrise' in result_dict['result'][0]

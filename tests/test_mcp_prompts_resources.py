@@ -113,7 +113,7 @@ async def test_mcp_local_prompts():
 async def test_mcp_local_resources():
   mcp = app.state.mcp
   templates = await mcp.list_resource_templates()
-  resource_uris = [str(r.uriTemplate) for r in templates]
+  resource_uris = [r.uri_template for r in templates]
   assert 'weather:///{lat}/{lon}/current' in resource_uris
   assert 'weather:///{lat}/{lon}/alerts' in resource_uris
 

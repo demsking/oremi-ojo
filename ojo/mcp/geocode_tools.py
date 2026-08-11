@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..core.geo import Geocode
 from ..core.geo import Location
 from ..core.geo import NotFoundLocationException
 
 
-def register_geocode_mcp_tools(mcp: FastMCP) -> None:
+def register_geocode_mcp_tools(mcp: MCPServer[None]) -> None:
   @mcp.tool(
     title='Search Locations',
     name='search_locations',

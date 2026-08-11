@@ -20,7 +20,7 @@ classifiers = [
 
 dependencies = [
   "fastapi[standard]>=0.115.12",
-  "mcp>=1.28.1",
+  "mcp==2.0.0",
   "openmeteo-requests>=1.4.0",
   "pydantic-settings>=2.14.2",
   "pytz>=2026.2",

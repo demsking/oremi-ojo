@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..models.air_quality import EAQIData
 from ..models.air_quality import USAQIData
 from ..services.air_quality_service import AirQualityService
 
 
-def register_air_quality_mcp_tools(mcp: FastMCP, service: AirQualityService) -> None:
+def register_air_quality_mcp_tools(mcp: MCPServer[None], service: AirQualityService) -> None:
   @mcp.tool(
     title='Get Air Quality',
     name='get_air_quality',

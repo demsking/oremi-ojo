@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import logging
 from functools import lru_cache
+from typing import Any
 from typing import Literal
 
 from pydantic import Field
@@ -22,6 +24,8 @@ from pydantic_settings import SettingsConfigDict
 
 from .package import APP_NAME
 from .package import APP_VERSION
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -89,3 +93,26 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
   """Return cached application settings."""
   return Settings()
+
+
+def _format(value: Any) -> str:
+  if value is None:
+    return 'None'
+
+  if isinstance(value, list):
+    return ','.join(str(item) for item in value)
+
+  return str(value)
+
+
+def log_group(settings: Settings, name: str, *fields: str) -> None:
+  """Log a group of related settings."""
+  values: list[str] = []
+
+  for field in fields:
+    value = getattr(settings, field)
+    value = _format(value)
+
+    values.append(f'{field}={value}')
+
+  logger.info('%s Settings: %s', name, ' '.join(values))

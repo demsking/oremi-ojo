@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from time import perf_counter
 
@@ -22,7 +22,11 @@ from fastapi import FastAPI
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from starlette.applications import Starlette
+from starlette.types import Receive
+from starlette.types import Scope
+from starlette.types import Send
 
 from ..api import docs
 from ..api import forecast
@@ -43,29 +47,28 @@ from ..utils.logger import configure_logging
 from .package import APP_DESCRIPTION
 from .package import APP_NAME
 from .package import APP_VERSION
+from .settings import log_group
 from .settings import Settings
 
 
 logger = logging.getLogger(__name__)
 
 
-def log_startup_settings(settings: Settings) -> None:
-  """Log every configured application setting without exposing secrets."""
-  for name in settings.__class__.model_fields:
-    value = getattr(settings, name)
-    logger.info('Setting %s: %s', name, value)
-
-
 def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None) -> FastAPI:
+  mcp_http_app: Starlette | None = None
+
   @asynccontextmanager
-  async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+  async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    nonlocal mcp_http_app
     startup_started = perf_counter()
     ready = False
 
     configure_logging(settings.log_level, settings.log_file)
 
     logger.info(f'{APP_NAME} v{APP_VERSION}')
-    log_startup_settings(settings)
+    log_group(settings, 'Server', 'server_host', 'server_port', 'api_prefix')
+    log_group(settings, 'HTTP', 'http_request_timeout', 'http_user_agent', 'http_cache_ttl_seconds')
+    log_group(settings, 'Logging', 'log_level', 'log_file')
 
     client = app.state.client
 
@@ -73,10 +76,13 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
 
     ready = True
 
-    _ = mcp.streamable_http_app()
-    if mcp._session_manager is not None:  # pylint: disable=protected-access
-      mcp._session_manager._has_started = False  # pylint: disable=protected-access
-    async with mcp.session_manager.run():
+    mcp_http_app = mcp.streamable_http_app(
+      streamable_http_path='/mcp',
+      stateless_http=True,
+      json_response=True,
+    )
+
+    async with mcp_http_app.router.lifespan_context(mcp_http_app):
       yield
 
     shutdown_started = perf_counter()
@@ -87,6 +93,7 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       logger.warning('Oremi Ojọ startup aborted; cleaning up resources')
 
     await client.aclose()
+    mcp_http_app = None
     logger.info(f'Oremi Ojọ stopped: duration_ms={(perf_counter() - shutdown_started) * 1000:.1f}')
 
   app = FastAPI(
@@ -111,7 +118,7 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
     ],
   )
 
-  mcp = FastMCP(
+  mcp: MCPServer[None] = MCPServer(
     name='Oremi Ojọ',
     instructions=(
       'Oremi Ojọ is a comprehensive climate and weather MCP server.\n'
@@ -119,10 +126,12 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       'hourly and daily predictions, weather alerts, air quality index data, pollen levels, '
       'sunrise/sunset times, and geocoding services (location search and reverse geocoding).'
     ),
-    stateless_http=True,
-    json_response=True,
-    streamable_http_path='/mcp',
   )
+
+  async def mcp_asgi(scope: Scope, receive: Receive, send: Send) -> None:
+    if mcp_http_app is None:
+      raise RuntimeError('MCP server is not running.')
+    await mcp_http_app(scope, receive, send)
 
   openmeteo = OpenMeteoProvider(settings)
   forecast_service = ForecastService(openmeteo)
@@ -180,6 +189,6 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
     pollen_service=pollen_service,
   )
 
-  app.mount(settings.api_prefix, mcp.streamable_http_app())
+  app.mount(settings.api_prefix, mcp_asgi)
 
   return app
