@@ -1,6 +1,6 @@
 [project]
 name = "oremi-ojo"
-version = "3.0.0b20"
+version = "3.0.0b21"
 description = "A comprehensive climate agent for weather forecasts, geocoding, and pollen data"
 keywords = ["forecast", "air quality", "pollen", "geocoding"]
 authors = [{ name = "Sébastien Demanou", email = "demsking@gmail.com" }]
@@ -53,6 +53,9 @@ dev = [
   "trio>=0.30.0",
   "types-pytz>=2026.2.0.20260518",
   "types-requests>=2.33.0.20260712",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.0.0",
+  "twine>=7.0.0",
 ]
 
 [build-system]
