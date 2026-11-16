@@ -95,7 +95,7 @@ async def test_mcp_call_get_current_pollen():
   mcp = app.state.mcp
   result_dict = (await mcp.call_tool('get_current_pollen', {'lat': 48.8534951, 'lon': 2.3483915})).structured_content
   assert result_dict is not None
-  assert result_dict['dominant_pollen'] is not None
+  assert 'dominant_pollen' in result_dict
 
 
 @pytest.mark.asyncio

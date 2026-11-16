@@ -80,6 +80,7 @@ def create_app(settings: Settings, http_client: httpx.AsyncClient | None = None)
       streamable_http_path='/mcp',
       stateless_http=True,
       json_response=True,
+      host=settings.server_host,
     )
 
     async with mcp_http_app.router.lifespan_context(mcp_http_app):
