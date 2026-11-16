@@ -1197,7 +1197,7 @@ wheels = [
 
 [[package]]
 name = "oremi-ojo"
-version = "3.0.0b21"
+version = "3.0.0b22"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
