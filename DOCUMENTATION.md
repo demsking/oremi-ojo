@@ -29,10 +29,10 @@ Project repository: https://gitlab.com/demsking/oremi-ojo
 
 ## Deployment
 
-Oremi Ojọ is distributed as a multi-platform Docker image for
-`linux/amd64` and `linux/arm64`. It can be deployed as a standalone service or
+The [official Docker image](https://hub.docker.com/r/demsking/oremi-ojo)
+supports `linux/amd64` and `linux/arm64`. It can be deployed as a standalone service or
 integrated into the Oremi ecosystem alongside services such as Oremi Isinmi,
-Weather, Rediyo, and Kansa.
+Oremi Rediyo, Oremi Kànsà, and Oremi Iṣakoso.
 
 The following sections describe the available Docker image, persistent storage
 requirements, and example deployments using both Docker and Docker Compose.
